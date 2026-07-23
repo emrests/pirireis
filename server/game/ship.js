@@ -1,4 +1,4 @@
-import { SHIPS } from './balance.js';
+import { SHIPS, FULLSAILS_RESIST } from './balance.js';
 import { sub, len, norm } from './vec.js';
 import { resolveShipCollision } from './map.js';
 
@@ -54,6 +54,7 @@ export class Ship {
 
   damage(amount) {
     if (!this.alive) return false;
+    if (this.hasBuff('fullsails')) amount *= (1 - FULLSAILS_RESIST);
     this.hp -= amount;
     if (this.hp <= 0) { this.hp = 0; this.alive = false; return true; }
     return false;

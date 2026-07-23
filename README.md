@@ -27,3 +27,9 @@ npm test
 
 ## Tuning
 All numbers live in `server/game/balance.js` (+ `BUFF_MS`). Map/islands in `server/game/map.js` — mirror the client copy in `client/js/render.js`.
+
+## Known limitations (v1)
+- Triple-Kill "Shockwave" buff is tracked but its knockback+stun is not yet implemented.
+- Inferno's "cannons spread fire" clause is not implemented (molotov area/DoT doubling IS).
+
+These are intentional v1 deferrals.

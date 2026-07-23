@@ -43,7 +43,7 @@ export class Base {
 
   canDonate(from, to) {
     return from.faction === this.faction && to.faction === this.faction &&
-      from.id !== to.id &&
+      from.id !== to.id && from.alive && to.alive &&
       dist(from.pos, this.pos) <= BASE.donateRadius &&
       dist(to.pos, this.pos) <= BASE.donateRadius;
   }

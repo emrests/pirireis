@@ -38,7 +38,7 @@ export class Input {
     if (k === 'a') this.net.send({ type:'fire', weapon:'archer', dir:{ x:w.x-me.x, y:w.y-me.y } });
     if (k === 'm') this.net.send({ type:'fire', weapon:'molotov', aim:{ x:w.x, y:w.y } });
     if (k === 'd') {
-      const mates = (this.getState()?.ships || []).filter((s) => s.faction === me.faction && s.id !== me.id);
+      const mates = (this.getState()?.ships || []).filter((s) => s.faction === me.faction && s.id !== me.id).filter((s) => s.alive);
       if (mates.length) {
         mates.sort((p, q) => Math.hypot(p.x-me.x,p.y-me.y) - Math.hypot(q.x-me.x,q.y-me.y));
         this.net.send({ type:'donate', targetPlayerId: mates[0].id });

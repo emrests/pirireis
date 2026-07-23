@@ -20,6 +20,7 @@ export class Room {
     const events = this.world.step(TICK_MS, now);
     this.broadcast({ type: MSG.SNAPSHOT, t: now, ...this.world.serialize() });
     if (events.length) this.broadcast({ type: MSG.EVENT, events });
+    if (this.world.over) this.stop();
   }
 
   start() {

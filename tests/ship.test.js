@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Ship } from '../server/game/ship.js';
+import { FULLSAILS_RESIST } from '../server/game/balance.js';
 
 function mk() {
   return new Ship({ id:'p1', name:'A', faction:'pirate', cls:'sloop', flagColor:'#f00', pos:{x:500,y:500} });
@@ -28,4 +29,13 @@ test('damage kills at zero and reports death once', () => {
   assert.equal(s.damage(50), true);   // crosses to <=0 -> died
   assert.equal(s.alive, false);
   assert.equal(s.damage(10), false);  // already dead, not "died this call"
+});
+
+test('fullsails buff reduces damage taken by 25%', () => {
+  const s = mk();
+  s.buffs.push({ type: 'fullsails', until: 999999 });
+  const before = s.hp;
+  s.damage(40);
+  const expectedLoss = 40 * (1 - FULLSAILS_RESIST);
+  assert.equal(before - s.hp, expectedLoss);
 });

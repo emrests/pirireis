@@ -33,10 +33,13 @@ export const MORTAR = { cooldownMs:6000, radius:170, durationMs:400, dotPerSec:0
 export const BASE = {
   hp:2000, healRadius:420, healWaitMs:2000, healPerSec:40,
   turretDmg:18, turretRange:700, turretCooldownMs:1200,
-  respawnMs:5000, donateRadius:460,
+  respawnMs:5000, donateRadius:460, baseHitPad:60,
 };
 
 export const BUFF_MS = {
   fastreload:12000, broadside:10000, fullsails:10000, inferno:12000,
   chainshot:8000, shockwave:8000, marksman:10000,
 };
+
+// Full Sails buff: +50% speed (see ship.speedNow) AND -25% damage taken.
+export const FULLSAILS_RESIST = 0.25;

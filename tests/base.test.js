@@ -45,3 +45,14 @@ test('donation requires same faction near base', () => {
   c.pos = { x: b.pos.x + 5000, y: b.pos.y };
   assert.equal(b.canDonate(a, c), false);
 });
+
+test('donating to (or from) a dead ship is not allowed', () => {
+  const b = new Base('pirate');
+  const a = new Ship({ id:'p1', name:'A', faction:'pirate', cls:'frigate', flagColor:'#f00', pos:{x: b.pos.x, y: b.pos.y} });
+  const c = new Ship({ id:'p2', name:'C', faction:'pirate', cls:'frigate', flagColor:'#f00', pos:{x: b.pos.x + 50, y: b.pos.y} });
+  c.alive = false;
+  assert.equal(b.canDonate(a, c), false);
+  c.alive = true;
+  a.alive = false;
+  assert.equal(b.canDonate(a, c), false);
+});

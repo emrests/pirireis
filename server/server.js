@@ -74,7 +74,11 @@ wss.on('connection', (ws) => {
       return;
     }
     if (ws.roomId && rooms.has(ws.roomId)) {
-      rooms.get(ws.roomId).room.handle(ws.playerId, msg);
+      try {
+        rooms.get(ws.roomId).room.handle(ws.playerId, msg);
+      } catch (err) {
+        console.error('gameplay intent handling failed:', err);
+      }
     }
   });
 

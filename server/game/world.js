@@ -31,9 +31,13 @@ export class World {
     const s = this.ships.get(id);
     if (!s || !s.alive || this.over) return;
     const now = this._now;
-    if (msg.type === 'move') { s.setTarget(msg.x, msg.y); return; }
+    if (msg.type === 'move') {
+      if (Number.isFinite(msg.x) && Number.isFinite(msg.y)) s.setTarget(msg.x, msg.y);
+      return;
+    }
     if (msg.type === 'useSkill') { return; } // buffs are auto-granted; reserved
     if (msg.type === 'donate') {
+      if (typeof msg.targetPlayerId !== 'string') return;
       const to = this.ships.get(msg.targetPlayerId);
       const base = this.bases[s.faction];
       if (to && base.canDonate(s, to) && s.buffs.length) {
@@ -50,16 +54,19 @@ export class World {
 
   _fire(s, msg, now) {
     if (msg.weapon === 'cannon') {
+      if (!msg.dir || !Number.isFinite(msg.dir.x) || !Number.isFinite(msg.dir.y)) return;
       const cd = SHIPS[s.cls].reloadMs * cooldownFactor(s);
       if (now - s.lastCannonAt < cd) return;
       s.lastCannonAt = now;
       this.projectiles.push(makeCannon(s, msg.dir, msg.power ?? 1));
     } else if (msg.weapon === 'archer') {
+      if (!msg.dir || !Number.isFinite(msg.dir.x) || !Number.isFinite(msg.dir.y)) return;
       const cd = ARCHER.cooldownMs * cooldownFactor(s);
       if (now - s.lastArcherAt < cd) return;
       s.lastArcherAt = now;
       this.projectiles.push(...makeArcherVolley(s, msg.dir));
     } else if (msg.weapon === 'molotov') {
+      if (msg.aim && (!Number.isFinite(msg.aim.x) || !Number.isFinite(msg.aim.y))) return;
       const cd = (s.cls === 'bombketch' ? MORTAR.cooldownMs : MOLOTOV.cooldownMs) * cooldownFactor(s);
       if (now - s.lastMolotovAt < cd) return;
       s.lastMolotovAt = now;
@@ -130,7 +137,7 @@ export class World {
         for (const f of ['pirate', 'navy']) {
           if (f === p.faction) continue;
           const base = this.bases[f];
-          if (base.alive && dist(base.pos, p.pos) <= p.hitRadius + 60) {
+          if (base.alive && dist(base.pos, p.pos) <= p.hitRadius + BASE.baseHitPad) {
             const died = base.damage(p.dmg);
             events.push({ type: 'baseHit', faction: f, hp: base.hp });
             if (died) this._endGame(p.faction, events);
