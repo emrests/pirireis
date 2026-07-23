@@ -1,18 +1,21 @@
 import { WORLD } from '../../shared/constants.js';
 import { clamp } from './vec.js';
 
+// Bases sit on the LEFT and RIGHT edges — the battle flows horizontally.
 export const BASES = {
-  pirate: { x: 500,  y: 500 },
-  navy:   { x: 3500, y: 3500 },
+  pirate: { x: 400,  y: 2000 },
+  navy:   { x: 3600, y: 2000 },
 };
 
-// Handcrafted islands (impassable cover) in the mid-field.
+// Handcrafted islands (impassable cover), symmetric left<->right so neither
+// side has a terrain advantage. Center is blocked; top (y~500) and bottom
+// (y~3500) stay open as flanking lanes.
 export const ISLANDS = [
-  { x: 2000, y: 2000, r: 320 },
-  { x: 1300, y: 2600, r: 220 },
-  { x: 2700, y: 1400, r: 220 },
-  { x: 1200, y: 1200, r: 180 },
-  { x: 2800, y: 2800, r: 180 },
+  { x: 2000, y: 2000, r: 300 },
+  { x: 1350, y: 1150, r: 210 },
+  { x: 2650, y: 1150, r: 210 },
+  { x: 1350, y: 2850, r: 210 },
+  { x: 2650, y: 2850, r: 210 },
 ];
 
 export function blocked(p) {

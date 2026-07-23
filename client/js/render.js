@@ -1,74 +1,134 @@
 // client/js/render.js
 import { worldToScreen } from './iso.js';
 import { drawShip } from './ships/draw.js';
+import { WaterFX } from './fx/water.js';
+import { drawIslands } from './fx/islands.js';
+import { drawBase } from './fx/bases.js';
+import { EffectsFX } from './fx/effects.js';
+import { drawVignette, drawTopBars, drawOwnPanel, drawMinimap } from './fx/hud.js';
+import { screenAngleForWorldDir, lerpAngle } from './fx/util.js';
 
 // Island list mirrors server/game/map.js (kept in sync manually).
 export const ISLANDS = [
-  { x:2000,y:2000,r:320 }, { x:1300,y:2600,r:220 }, { x:2700,y:1400,r:220 },
-  { x:1200,y:1200,r:180 }, { x:2800,y:2800,r:180 },
+  { x:2000,y:2000,r:300 }, { x:1350,y:1150,r:210 }, { x:2650,y:1150,r:210 },
+  { x:1350,y:2850,r:210 }, { x:2650,y:2850,r:210 },
 ];
-const HEAL_R = 420;
+
+const MOVE_EPS = 0.35;      // world units/frame below which we don't retarget heading
+const MOVING_SPEED = 14;    // world units/sec above which a ship counts as "moving"
+const WAKE_INTERVAL = 90;   // ms between wake puffs while moving
+const SINK_DURATION = 2600; // ms for a dead ship to fully sink/fade
 
 export class Renderer {
-  constructor(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.resize(); }
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.water = new WaterFX();
+    this.fx = new EffectsFX();
+    this.shipFx = new Map(); // id -> {heading, bobPhase, rollPhase, lastX, lastY, lastT, speed, wake, deadSince, bubbles, moving}
+    this.resize();
+  }
+
   resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; }
 
   draw(state, cam, meId) {
     const ctx = this.ctx;
-    cam.cx = this.canvas.width / 2; cam.cy = this.canvas.height / 2;
-    ctx.fillStyle = '#12455f'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    const canvas = this.canvas;
+    cam.cx = canvas.width / 2; cam.cy = canvas.height / 2;
+    const now = performance.now();
 
-    for (const b of state.bases) {
-      const p = worldToScreen(b.x, b.y, cam);
-      const hz = worldToScreen(b.x + HEAL_R, b.y, cam);
-      const rr = Math.abs(hz.sx - p.sx);
-      ctx.beginPath(); ctx.arc(p.sx, p.sy, rr, 0, 7);
-      ctx.fillStyle = b.faction === 'pirate' ? '#e6394622' : '#4db5ff22'; ctx.fill();
-      ctx.fillStyle = b.alive ? '#c9a24b' : '#444';
-      ctx.fillRect(p.sx - 26, p.sy - 20, 52, 40);
-      const frac = Math.max(0, b.hp / b.maxHp);
-      ctx.fillStyle = '#000a'; ctx.fillRect(p.sx - 30, p.sy - 34, 60, 6);
-      ctx.fillStyle = b.faction === 'pirate' ? '#e63946' : '#4db5ff';
-      ctx.fillRect(p.sx - 30, p.sy - 34, 60 * frac, 6);
-    }
+    this.water.draw(ctx, canvas.width, canvas.height, cam, now, ISLANDS, state.bases);
+    drawIslands(ctx, ISLANDS, cam, now);
+    for (const b of state.bases) drawBase(ctx, b, cam, now);
+    this.fx.drawFires(ctx, state.fires, cam, now);
 
-    for (const i of ISLANDS) {
-      const p = worldToScreen(i.x, i.y, cam);
-      const e = worldToScreen(i.x + i.r, i.y, cam);
-      const rx = Math.abs(e.sx - p.sx);
-      ctx.beginPath(); ctx.ellipse(p.sx, p.sy, rx, rx / 2, 0, 0, 7);
-      ctx.fillStyle = '#3d7a4f'; ctx.fill(); ctx.strokeStyle = '#2a5738'; ctx.stroke();
-    }
-
-    for (const f of state.fires) {
-      const p = worldToScreen(f.x, f.y, cam);
-      const e = worldToScreen(f.x + f.radius, f.y, cam);
-      const rx = Math.abs(e.sx - p.sx);
-      ctx.beginPath(); ctx.ellipse(p.sx, p.sy, rx, rx / 2, 0, 0, 7);
-      ctx.fillStyle = '#ff6a0055'; ctx.fill();
-    }
-
-    for (const pr of state.projectiles) {
-      const p = worldToScreen(pr.x, pr.y, cam);
-      ctx.beginPath(); ctx.arc(p.sx, p.sy, pr.kind === 'arrow' ? 2 : 4, 0, 7);
-      ctx.fillStyle = pr.kind === 'arrow' ? '#e8d8a0' : '#111'; ctx.fill();
-    }
+    const liveIds = new Set(state.ships.map((s) => s.id));
+    for (const id of [...this.shipFx.keys()]) if (!liveIds.has(id)) this.shipFx.delete(id);
 
     const ships = [...state.ships].sort((a, b) => a.y - b.y);
-    for (const s of ships) drawShip(ctx, s, worldToScreen(s.x, s.y, cam), cam.scale);
+    for (const s of ships) {
+      const fx = this._updateShipFx(s, now, cam);
+      if (s.alive) {
+        if (fx.moving) this.fx.drawWake(ctx, fx, cam, now);
+        else this.fx.drawIdleRipple(ctx, fx, cam, now);
+      }
+
+      const bobFreq = fx.moving ? 2.6 : 1.4;
+      const bobAmp = (fx.moving ? 3.2 : 1.6) * cam.scale;
+      const bob = Math.sin(now * 0.001 * bobFreq + fx.bobPhase) * bobAmp - (fx.moving ? 1.4 * cam.scale : 0);
+      const rollFreq = fx.moving ? 2.1 : 1.1;
+      const rollAmp = fx.moving ? 0.055 : 0.022;
+      const roll = Math.sin(now * 0.001 * rollFreq + fx.rollPhase) * rollAmp;
+      const sinkT = fx.deadSince != null ? Math.min(1, (now - fx.deadSince) / SINK_DURATION) : 0;
+
+      const pos = worldToScreen(s.x, s.y, cam);
+      drawShip(ctx, s, pos, cam.scale, { heading: fx.heading, bob, roll, moving: fx.moving, sinkT }, now);
+
+      if (!s.alive && sinkT < 1) this.fx.drawBubbles(ctx, fx, cam, now);
+    }
+
+    this.fx.drawProjectiles(ctx, state.projectiles, cam, now);
+    this.fx.drawSplashes(ctx, cam, now);
 
     this._hud(state, meId);
+    drawVignette(ctx, canvas.width, canvas.height);
+  }
+
+  // Derives smoothed screen-space heading, bob/roll phase, wake trail and
+  // sink timing for one ship from frame-to-frame movement. Cached per ship
+  // id so each vessel bobs/turns independently and dead ships remember when
+  // they sank.
+  _updateShipFx(ship, now, cam) {
+    let fx = this.shipFx.get(ship.id);
+    if (!fx) {
+      fx = {
+        heading: ship.faction === 'pirate' ? 0 : Math.PI,
+        bobPhase: Math.random() * Math.PI * 2,
+        rollPhase: Math.random() * Math.PI * 2,
+        lastX: ship.x, lastY: ship.y, lastT: now,
+        speed: 0, moving: false,
+        wake: [], lastWake: 0,
+        deadSince: null, bubbles: [], lastBubble: 0,
+      };
+      this.shipFx.set(ship.id, fx);
+    }
+
+    const dtSec = Math.max(1, now - fx.lastT) / 1000;
+    const dx = ship.x - fx.lastX, dy = ship.y - fx.lastY;
+    const dist = Math.hypot(dx, dy);
+    const instSpeed = dist / dtSec;
+    fx.speed = fx.speed * 0.8 + instSpeed * 0.2;
+    fx.moving = fx.speed > MOVING_SPEED;
+
+    if (dist > MOVE_EPS) {
+      const target = screenAngleForWorldDir(fx.lastX, fx.lastY, dx, dy, cam);
+      fx.heading = lerpAngle(fx.heading, target, 0.18);
+    }
+
+    if (ship.alive) {
+      fx.deadSince = null;
+      if (fx.moving && now - fx.lastWake > WAKE_INTERVAL) {
+        fx.lastWake = now;
+        const ux = dist > 0.01 ? dx / dist : Math.cos(fx.heading);
+        const uy = dist > 0.01 ? dy / dist : Math.sin(fx.heading);
+        fx.wake.push({ x: ship.x - ux * 16, y: ship.y - uy * 16, born: now });
+        if (fx.wake.length > 40) fx.wake.shift();
+      }
+    } else if (fx.deadSince == null) {
+      fx.deadSince = now;
+    }
+
+    fx.lastX = ship.x; fx.lastY = ship.y; fx.lastT = now;
+    return fx;
   }
 
   _hud(state, meId) {
     const ctx = this.ctx;
-    const p = state.bases.find((b) => b.faction === 'pirate');
-    const n = state.bases.find((b) => b.faction === 'navy');
-    ctx.fillStyle = '#fff'; ctx.font = '14px system-ui'; ctx.textAlign = 'left';
-    ctx.fillText(`🏴‍☠️ ${p.hp}    ⚓ ${n.hp}`, 12, 22);
+    const pirate = state.bases.find((b) => b.faction === 'pirate');
+    const navy = state.bases.find((b) => b.faction === 'navy');
+    if (pirate && navy) drawTopBars(ctx, this.canvas.width, pirate, navy);
     const mine = state.ships.find((s) => s.id === meId);
-    if (mine) {
-      ctx.fillText(`HP ${mine.hp}/${mine.maxHp}   Seri ${mine.streak}   Buff: ${mine.buffs.join(', ') || '-'}`, 12, this.canvas.height - 16);
-    }
+    drawOwnPanel(ctx, this.canvas.height, mine);
+    drawMinimap(ctx, this.canvas.width, ISLANDS, state.bases, state.ships, meId);
   }
 }
