@@ -16,9 +16,9 @@ export function createWater(worldW, worldH) {
     uniforms: {
       uTime:   { value: 0 },
       uSun:    { value: new THREE.Vector3(-0.5, 0.8, 0.35).normalize() },
-      uDeep:   { value: new THREE.Color('#0a2f45') },
-      uShallow:{ value: new THREE.Color('#1f6f8f') },
-      uFoam:   { value: new THREE.Color('#dff2f7') },
+      uDeep:   { value: new THREE.Color('#14577a') },
+      uShallow:{ value: new THREE.Color('#4bb0d0') },
+      uFoam:   { value: new THREE.Color('#eaf7fb') },
       uCam:    { value: new THREE.Vector3() },
       uOffset: { value: new THREE.Vector2(worldW / 2, worldH / 2) },
       uWDir:   { value: dirVecs },
@@ -41,7 +41,7 @@ export function createWater(worldW, worldH) {
         vec3 local = vec3(position.x, 0.0, position.z) + disp;
         vWorld = local + vec3(uOffset.x, 0.0, uOffset.y);
         vNormal = nrm;
-        vCrest = clamp(disp.y * 0.06 + 0.5, 0.0, 1.0);
+        vCrest = clamp(disp.y * 0.02 + 0.5, 0.0, 1.0);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(local, 1.0);
       }
     `,
@@ -55,21 +55,23 @@ export function createWater(worldW, worldH) {
         vec3 N = normalize(vNormal);
         vec3 V = normalize(uCam - vWorld);
         vec3 L = normalize(uSun);
-        // base water colour by view angle (deeper when looking flat)
-        float depth = clamp(dot(N, V), 0.0, 1.0);
-        vec3 col = mix(uDeep, uShallow, depth * 0.7 + vCrest * 0.25);
-        // sun specular
+        // wave faces (where the normal tilts away from straight up) read lighter,
+        // flat troughs stay deep -> the swell shows as real moving water.
+        float upFace = clamp(N.y, 0.0, 1.0);
+        float slope = 1.0 - upFace;
+        vec3 col = mix(uDeep, uShallow, smoothstep(0.0, 0.4, slope));
+        // sun diffuse (kept bright so open water stays a lively blue) + glints
+        float diff = 0.82 + 0.28 * max(dot(N, L), 0.0);
+        col *= diff;
         vec3 Hh = normalize(L + V);
-        float spec = pow(max(dot(N, Hh), 0.0), 90.0);
-        col += vec3(1.0, 0.96, 0.85) * spec * 0.9;
-        // fresnel rim brighten
-        float fres = pow(1.0 - depth, 3.0);
-        col = mix(col, uShallow * 1.4, fres * 0.35);
-        // foam on the highest crests
-        float foam = smoothstep(0.82, 0.98, vCrest);
-        col = mix(col, uFoam, foam * 0.6);
-        // gentle diffuse from sun
-        col *= 0.75 + 0.35 * max(dot(N, L), 0.0);
+        float spec = pow(max(dot(N, Hh), 0.0), 220.0);
+        col += vec3(1.0, 0.97, 0.88) * spec;
+        // gentle sky reflection at grazing angles
+        float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 4.0);
+        col = mix(col, vec3(0.60, 0.76, 0.86), fres * 0.28);
+        // thin foam only on the sharpest crests
+        float foam = smoothstep(0.9, 1.0, vCrest);
+        col = mix(col, uFoam, foam * 0.35);
         gl_FragColor = vec4(col, 1.0);
       }
     `,

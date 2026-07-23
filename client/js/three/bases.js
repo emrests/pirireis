@@ -8,42 +8,49 @@ const HEAL_R = 420;
 
 function buildFort(faction) {
   const g = new THREE.Group();
+  const struct = new THREE.Group();          // the fort itself (shrunk, edge-shifted)
   const stone = new THREE.MeshStandardMaterial({ color: 0x8b8577, roughness: 0.95 });
   const darkStone = new THREE.MeshStandardMaterial({ color: 0x6f6a5e, roughness: 0.95 });
   const wood = new THREE.MeshStandardMaterial({ color: 0x5b3d24, roughness: 0.9 });
   const facColor = faction === 'pirate' ? 0xb5241d : 0x2f7fd0;
+  const pierDir = faction === 'pirate' ? 1 : -1;  // +X = toward field centre
 
   // dock platform
   const dock = new THREE.Mesh(new THREE.BoxGeometry(220, 26, 300), stone);
-  dock.position.y = 8; dock.castShadow = true; dock.receiveShadow = true; g.add(dock);
+  dock.position.y = 8; dock.castShadow = true; dock.receiveShadow = true; struct.add(dock);
   // pier out toward the sea (toward field centre)
-  const pierDir = faction === 'pirate' ? 1 : -1;
   const pier = new THREE.Mesh(new THREE.BoxGeometry(180, 12, 60), wood);
-  pier.position.set(pierDir * 190, 6, 0); pier.castShadow = true; g.add(pier);
+  pier.position.set(pierDir * 190, 6, 0); pier.castShadow = true; struct.add(pier);
 
   // main keep
   const keep = new THREE.Mesh(new THREE.BoxGeometry(120, 130, 140), stone);
-  keep.position.set(-pierDir * 30, 70, 0); keep.castShadow = true; g.add(keep);
+  keep.position.set(-pierDir * 30, 70, 0); keep.castShadow = true; struct.add(keep);
   // two towers
   for (const tz of [-110, 110]) {
     const tower = new THREE.Mesh(new THREE.CylinderGeometry(34, 40, 170, 12), darkStone);
-    tower.position.set(-pierDir * 40, 90, tz); tower.castShadow = true; g.add(tower);
+    tower.position.set(-pierDir * 40, 90, tz); tower.castShadow = true; struct.add(tower);
     const cap = new THREE.Mesh(new THREE.ConeGeometry(44, 40, 12), new THREE.MeshStandardMaterial({ color: facColor, roughness: 0.7 }));
-    cap.position.set(-pierDir * 40, 190, tz); g.add(cap);
+    cap.position.set(-pierDir * 40, 190, tz); struct.add(cap);
   }
   // banner pole + flag
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 150, 6), wood);
-  pole.position.set(-pirDirSafe(pierDir) * 30, 200, 0); g.add(pole);
+  pole.position.set(-pierDir * 30, 200, 0); struct.add(pole);
   const banner = new THREE.Mesh(new THREE.PlaneGeometry(70, 46), new THREE.MeshStandardMaterial({ color: facColor, roughness: 0.7, side: THREE.DoubleSide, emissive: facColor, emissiveIntensity: 0.15 }));
-  banner.position.set(-pierDir * 30 + 38, 235, 0); g.add(banner);
+  banner.position.set(-pierDir * 30 + 38, 235, 0); struct.add(banner);
   // a couple of cannons facing the field
   const cmat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.4, metalness: 0.6 });
   for (const cz of [-60, 60]) {
     const c = new THREE.Mesh(new THREE.CylinderGeometry(9, 11, 60, 8), cmat);
-    c.rotation.z = Math.PI / 2; c.position.set(pierDir * 95, 26, cz); g.add(c);
+    c.rotation.z = Math.PI / 2; c.position.set(pierDir * 95, 26, cz); struct.add(c);
   }
 
-  // pulsing heal ring on the water
+  // shrink the fort and push it toward the map edge, so ships spawn (at base
+  // centre) in open water in FRONT of the harbour instead of inside it.
+  struct.scale.setScalar(0.55);
+  struct.position.x = -pierDir * 210;
+  g.add(struct);
+
+  // pulsing heal ring on the water, kept centred on the base position
   const ringGeo = new THREE.RingGeometry(HEAL_R * 0.94, HEAL_R, 64);
   ringGeo.rotateX(-Math.PI / 2);
   const ringMat = new THREE.MeshBasicMaterial({ color: facColor, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
@@ -54,9 +61,6 @@ function buildFort(faction) {
 
   return { group: g, banner, ring, ringMat, keep };
 }
-
-// pierDir is ±1; keep a tiny guard so a stray 0 never collapses the pole.
-function pirDirSafe(d) { return d === 0 ? 1 : d; }
 
 export class BaseManager {
   constructor(scene) { this.scene = scene; this.bases = new Map(); }

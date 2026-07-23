@@ -23,7 +23,7 @@ export const ISLANDS = [
 // AoE-ish view: elevation ~34°, azimuth 45° -> fixed diagonal top-down angle.
 const CAM_DIR = new THREE.Vector3(0.58, 0.66, 0.58).normalize();
 const CAM_DIST = 3000;
-const BASE_VIEW = 620; // ortho half-height in world units at scale 1
+const BASE_VIEW = 820; // ortho half-height in world units at scale 1
 
 export class Renderer {
   constructor(canvas) {

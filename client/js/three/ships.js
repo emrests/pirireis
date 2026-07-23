@@ -107,7 +107,7 @@ function buildShip(cls, faction, flagColor) {
     m.rotation.z = 0.5; m.position.set(0.1, 0.62, 0); g.add(m);
   }
 
-  const scale = spec.s / 10;
+  const scale = spec.s * 1.05; // world units; ~45u sloop … ~95u galleon
   g.scale.setScalar(scale);
   return { group: g, sails, flag, brazier, flagMat, sailMat, scale };
 }
@@ -171,7 +171,7 @@ export class ShipManager {
     _n.set(n.x, n.y, n.z);
     const bowLift = moving ? 0.06 : 0;
     // sit the hull into the water (waterline ~mid-hull), scaled per class
-    g.position.set(s.x, h - 0.35 * e.parts.scale, s.y);
+    g.position.set(s.x, h - 0.28 * e.parts.scale, s.y);
     _qTilt.setFromUnitVectors(_up, _n);
     _qYaw.setFromAxisAngle(_up, e.heading);
     g.quaternion.copy(_qTilt).multiply(_qYaw);
@@ -188,18 +188,20 @@ export class ShipManager {
       e.lastWake = now;
       const ux = dist > 0.01 ? dx / dist : Math.cos(e.heading);
       const uz = dist > 0.01 ? dz / dist : -Math.sin(e.heading);
-      this._spawnWake(s.x - ux * e.parts.scale * 11, s.y - uz * e.parts.scale * 11, h, e, now);
+      const sc = e.parts.scale;
+      this._spawnWake(s.x - ux * sc * 1.1, s.y - uz * sc * 1.1, h, sc, e, now);
     }
     this._agewake(e, tSec, now);
   }
 
-  _spawnWake(x, y, h, e, now) {
+  _spawnWake(x, y, h, sc, e, now) {
     const mat = new THREE.MeshBasicMaterial({ color: 0xdff2f7, transparent: true, opacity: 0.5, depthWrite: false });
     const m = new THREE.Mesh(RING_GEO, mat);
-    m.position.set(x, h + 0.6, y);
-    m.scale.setScalar(6);
+    m.position.set(x, h + 1.5, y);
+    const base = sc * 0.6;
+    m.scale.setScalar(base);
     this.scene.add(m);
-    e.wake.push({ m, born: now });
+    e.wake.push({ m, born: now, base });
     if (e.wake.length > 26) { const old = e.wake.shift(); this._free(old.m); }
   }
   _agewake(e, tSec, now) {
@@ -208,7 +210,7 @@ export class ShipManager {
       const k = (now - w.born) / 900;
       if (k >= 1) { this._free(w.m); e.wake.splice(i, 1); continue; }
       w.m.material.opacity = 0.5 * (1 - k);
-      w.m.scale.setScalar(6 + k * 16);
+      w.m.scale.setScalar(w.base * (1 + k * 2.4));
     }
   }
   _free(m) { this.scene.remove(m); m.material.dispose(); }
