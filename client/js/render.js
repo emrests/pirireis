@@ -10,6 +10,7 @@ import { ShipManager } from './three/ships.js';
 import { createIslands } from './three/islands.js';
 import { BaseManager } from './three/bases.js';
 import { ProjectileManager } from './three/projectiles.js';
+import { FishManager } from './three/fish.js';
 import { drawHUD } from './three/hud.js';
 
 const WORLD = 4000;
@@ -61,6 +62,11 @@ export class Renderer {
     this.ships = new ShipManager(this.scene);
     this.bases = new BaseManager(this.scene);
     this.proj = new ProjectileManager(this.scene);
+    this.fish = new FishManager(this.scene);
+
+    // client-side ability cooldown clocks (updated by Input via markAbility)
+    this.abilities = { cannon: 0, archer: 0, molotov: 0, donate: 0 };
+    this._lastT = performance.now();
 
     // 2D HUD overlay above the WebGL canvas
     this.hud = document.createElement('canvas');
@@ -91,9 +97,12 @@ export class Renderer {
     c.updateProjectionMatrix();
   }
 
+  markAbility(name) { if (name in this.abilities) this.abilities[name] = performance.now(); }
+
   draw(state, cam, meId) {
     const now = performance.now();
     const t = now / 1000;
+    const dt = Math.min(0.05, (now - this._lastT) / 1000); this._lastT = now;
 
     // camera follows the player, fixed AoE angle
     this._camTarget.set(cam.x, 0, cam.y);
@@ -111,9 +120,10 @@ export class Renderer {
     this.ships.update(state.ships, t, now);
     this.bases.update(state.bases, t);
     this.proj.update(state.projectiles, state.fires, t, now);
+    this.fish.update(t, dt);
 
     this.renderer.render(this.scene, this.camera);
-    drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS);
+    drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS, this.abilities, now);
   }
 
   // Screen pixel -> world (x, y) by casting a ray onto the sea plane (Y=0).

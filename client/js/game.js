@@ -27,7 +27,7 @@ async function boot() {
     canvas.classList.remove('hidden');
     renderer = new Renderer(canvas);
     window.addEventListener('resize', () => renderer.resize());
-    new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y));
+    new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y), (name) => renderer.markAbility(name));
     requestAnimationFrame(loop);
   });
 

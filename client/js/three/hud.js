@@ -26,7 +26,75 @@ function bar(ctx, x, y, w, h, frac, color) {
   ctx.strokeRect(x, y, w, h);
 }
 
-export function drawHUD(ctx, W, H, state, meId, islands) {
+// cannon reload per class (mirrors server/game/balance.js SHIPS.reloadMs)
+const CANNON_RELOAD = {
+  sloop:1400, brig:1700, frigate:2000, galleon:2900, fireship:2000,
+  cutter:1400, corvette:1700, frigate_n:2000, shipofline:3000, bombketch:3200,
+};
+const ABILITIES = [
+  { key: 'cannon',  label: 'SAĞ TIK', icon: '💣', name: 'Top' },
+  { key: 'archer',  label: 'A',       icon: '🏹', name: 'Okçu' },
+  { key: 'molotov', label: 'M',       icon: '🔥', name: 'Molotof' },
+  { key: 'donate',  label: 'D',       icon: '🎁', name: 'Bağış' },
+];
+
+function abilityCooldown(key, mine) {
+  const fast = mine && mine.buffs && mine.buffs.includes('fastreload') ? 0.6 : 1;
+  if (key === 'cannon') return (CANNON_RELOAD[mine?.cls] || 2000) * fast;
+  if (key === 'archer') return 700 * fast;
+  if (key === 'molotov') return 6000 * fast;
+  return 0; // donate has no cooldown
+}
+
+function drawAbilityBar(ctx, W, H, mine, abilities, now) {
+  const n = ABILITIES.length, sz = 60, gap = 12;
+  const total = n * sz + (n - 1) * gap;
+  let x = (W - total) / 2;
+  const y = H - sz - 22;
+  panel(ctx, x - 12, y - 12, total + 24, sz + 30, 12);
+  for (const ab of ABILITIES) {
+    // slot background
+    ctx.fillStyle = 'rgba(16,32,46,0.92)';
+    ctx.strokeStyle = 'rgba(150,190,220,0.5)'; ctx.lineWidth = 2;
+    roundRect(ctx, x, y, sz, sz, 9); ctx.fill(); ctx.stroke();
+    // icon
+    ctx.font = '30px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ab.icon, x + sz / 2, y + sz / 2 - 2);
+    // cooldown sweep (dark, drains from top) + seconds
+    const cd = abilityCooldown(ab.key, mine);
+    const last = abilities ? abilities[ab.key] || 0 : 0;
+    const el = now - last;
+    if (cd > 0 && el < cd) {
+      const frac = 1 - el / cd;
+      ctx.fillStyle = 'rgba(0,0,0,0.62)';
+      ctx.fillRect(x, y, sz, sz * frac);
+      ctx.fillStyle = '#fff'; ctx.font = '700 20px system-ui';
+      ctx.fillText(Math.ceil((cd - el) / 1000) + '', x + sz / 2, y + sz / 2);
+    }
+    // key badge
+    ctx.fillStyle = '#0e2233'; ctx.strokeStyle = 'rgba(150,190,220,0.7)'; ctx.lineWidth = 1.5;
+    const bw = ab.label.length > 2 ? 52 : 20, bh = 16;
+    roundRect(ctx, x + sz / 2 - bw / 2, y + sz - 8, bw, bh, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#cfe8ff'; ctx.font = '700 11px system-ui';
+    ctx.fillText(ab.label, x + sz / 2, y + sz);
+    // name under
+    ctx.fillStyle = 'rgba(210,230,245,0.85)'; ctx.font = '11px system-ui';
+    ctx.fillText(ab.name, x + sz / 2, y + sz + 18);
+    x += sz + gap;
+  }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+export function drawHUD(ctx, W, H, state, meId, islands, abilities, now) {
   ctx.clearRect(0, 0, W, H);
   const pirate = state.bases.find((b) => b.faction === 'pirate');
   const navy = state.bases.find((b) => b.faction === 'navy');
@@ -101,4 +169,7 @@ export function drawHUD(ctx, W, H, state, meId, islands) {
     if (s.id === meId) { ctx.strokeStyle = '#000'; ctx.stroke(); }
   }
   ctx.restore();
+
+  // LoL-style ability bar (weapons + keybinds + cooldowns), bottom-centre
+  drawAbilityBar(ctx, W, H, mine, abilities, now);
 }
