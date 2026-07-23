@@ -35,3 +35,8 @@ export const BASE = {
   turretDmg:18, turretRange:700, turretCooldownMs:1200,
   respawnMs:5000, donateRadius:460,
 };
+
+export const BUFF_MS = {
+  fastreload:12000, broadside:10000, fullsails:10000, inferno:12000,
+  chainshot:8000, shockwave:8000, marksman:10000,
+};
