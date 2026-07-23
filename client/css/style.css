@@ -1,0 +1,17 @@
+/* client/css/style.css */
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, sans-serif; background:#0b1e2d; color:#e8f1f8; overflow:hidden; }
+.screen { position:absolute; inset:0; }
+.hidden { display:none !important; }
+#lobby { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px; }
+#lobby h1 { font-size:2.4rem; }
+#joinForm { display:flex; flex-direction:column; gap:12px; width:min(420px,90vw); background:#12324a; padding:20px; border-radius:12px; }
+#joinForm input#room, #joinForm input#nick { padding:10px; border-radius:8px; border:1px solid #24506f; background:#0d2537; color:#fff; }
+.factions { display:flex; gap:16px; }
+.ships { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+.ships .ship { padding:8px 4px; border:1px solid #24506f; border-radius:8px; cursor:pointer; text-align:center; font-size:.72rem; }
+.ships .ship.sel { background:#1d6fa5; border-color:#4db5ff; }
+#joinForm button { padding:12px; border:0; border-radius:8px; background:#e63946; color:#fff; font-weight:700; cursor:pointer; }
+#game { display:block; width:100vw; height:100vh; background:#12455f; }
+#endScreen { display:flex; align-items:center; justify-content:center; font-size:2rem; background:rgba(0,0,0,.6); text-align:center; }
+#endScreen button { margin-top:14px; padding:10px 20px; border:0; border-radius:8px; background:#4db5ff; cursor:pointer; }

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deniz Savaşı</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div id="lobby" class="screen">
+    <h1>⚓ Deniz Savaşı</h1>
+    <div id="roomList"></div>
+    <form id="joinForm">
+      <input id="room" placeholder="Oda adı" value="oda1" />
+      <input id="nick" placeholder="Rumuz" value="Denizci" />
+      <div class="factions">
+        <label><input type="radio" name="faction" value="pirate" checked /> 🏴‍☠️ Korsan</label>
+        <label><input type="radio" name="faction" value="navy" /> ⚓ Donanma</label>
+      </div>
+      <div id="ships" class="ships"></div>
+      <label>Bayrak: <input type="color" id="flag" value="#e63946" /></label>
+      <button type="submit">Savaşa Gir</button>
+    </form>
+  </div>
+  <canvas id="game" class="screen hidden"></canvas>
+  <div id="endScreen" class="screen hidden"></div>
+  <script type="module" src="/js/game.js"></script>
+</body>
+</html>
