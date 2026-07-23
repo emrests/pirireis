@@ -8,7 +8,7 @@ export const BASES = {
 
 // Handcrafted islands (impassable cover) in the mid-field.
 export const ISLANDS = [
-  { x: 2000, y: 2000, r: 320 },
+  { x: 2000, y: 2000, r: 50 },
   { x: 1300, y: 2600, r: 220 },
   { x: 2700, y: 1400, r: 220 },
   { x: 1200, y: 1200, r: 180 },
@@ -31,7 +31,11 @@ function distPointSeg(p, a, b) {
 }
 
 export function segmentHitsIsland(a, b) {
-  return ISLANDS.some((i) => distPointSeg(i, a, b) < i.r);
+  return ISLANDS.some((i) => {
+    // Don't count as hit if segment starts inside island
+    if (Math.hypot(a.x - i.x, a.y - i.y) < i.r) return false;
+    return distPointSeg(i, a, b) < i.r;
+  });
 }
 
 export function resolveShipCollision(pos, radius) {

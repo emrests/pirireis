@@ -23,9 +23,9 @@ export class Ship {
     this.buffs = [];               // [{type, until}]
     this.streak = 0;
     this.archerKills = 0;
-    this.lastCannonAt = 0;
-    this.lastArcherAt = 0;
-    this.lastMolotovAt = 0;
+    this.lastCannonAt = -999999;
+    this.lastArcherAt = -999999;
+    this.lastMolotovAt = -999999;
     this.healingSince = null;      // ts when entered heal zone (set by base logic)
     this.safe = false;             // true while healing in own base zone
   }
