@@ -1,12 +1,18 @@
 // client/js/render.js
-import { worldToScreen } from './iso.js';
-import { drawShip } from './ships/draw.js';
-import { WaterFX } from './fx/water.js';
-import { drawIslands } from './fx/islands.js';
-import { drawBase } from './fx/bases.js';
-import { EffectsFX } from './fx/effects.js';
-import { drawVignette, drawTopBars, drawOwnPanel, drawMinimap } from './fx/hud.js';
-import { screenAngleForWorldDir, lerpAngle } from './fx/util.js';
+// Real 3D WebGL renderer (Three.js). An Age-of-Empires-style orthographic
+// camera looks over a Gerstner-wave sea at floating 3D ships, terrain islands
+// and harbour forts. Same public surface the rest of the client already uses:
+//   new Renderer(canvas) · resize() · draw(state, cam, meId)
+//   + screenToWorld(clientX, clientY) -> {x, y}  (raycast onto the water plane)
+import * as THREE from '/vendor/three.module.js';
+import { createWater, updateWater } from './three/water.js';
+import { ShipManager } from './three/ships.js';
+import { createIslands } from './three/islands.js';
+import { BaseManager } from './three/bases.js';
+import { ProjectileManager } from './three/projectiles.js';
+import { drawHUD } from './three/hud.js';
+
+const WORLD = 4000;
 
 // Island list mirrors server/game/map.js (kept in sync manually).
 export const ISLANDS = [
@@ -14,121 +20,112 @@ export const ISLANDS = [
   { x:1350,y:2850,r:210 }, { x:2650,y:2850,r:210 },
 ];
 
-const MOVE_EPS = 0.35;      // world units/frame below which we don't retarget heading
-const MOVING_SPEED = 14;    // world units/sec above which a ship counts as "moving"
-const WAKE_INTERVAL = 90;   // ms between wake puffs while moving
-const SINK_DURATION = 2600; // ms for a dead ship to fully sink/fade
+// AoE-ish view: elevation ~34°, azimuth 45° -> fixed diagonal top-down angle.
+const CAM_DIR = new THREE.Vector3(0.58, 0.66, 0.58).normalize();
+const CAM_DIST = 3000;
+const BASE_VIEW = 620; // ortho half-height in world units at scale 1
 
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.water = new WaterFX();
-    this.fx = new EffectsFX();
-    this.shipFx = new Map(); // id -> {heading, bobPhase, rollPhase, lastX, lastY, lastT, speed, wake, deadSince, bubbles, moving}
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color('#afd4e6');
+    // fog starts past the camera-to-target distance so the foreground stays
+    // crisp (ortho cam sits ~CAM_DIST away); only far map edges haze out.
+    this.scene.fog = new THREE.Fog('#afd4e6', 4300, 9000);
+
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 12000);
+
+    // lights
+    const hemi = new THREE.HemisphereLight('#dff0ff', '#2b4a3a', 0.9);
+    this.scene.add(hemi);
+    this.sun = new THREE.DirectionalLight('#fff3d6', 1.35);
+    this.sun.position.set(-1, 1.6, 0.7).multiplyScalar(1000);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    const sc = this.sun.shadow.camera;
+    sc.left = -1400; sc.right = 1400; sc.top = 1400; sc.bottom = -1400; sc.near = 100; sc.far = 4000;
+    this.scene.add(this.sun);
+    this.scene.add(this.sun.target);
+
+    // world
+    this.water = createWater(WORLD, WORLD);
+    this.scene.add(this.water.mesh);
+    this.scene.add(createIslands(ISLANDS));
+    this.ships = new ShipManager(this.scene);
+    this.bases = new BaseManager(this.scene);
+    this.proj = new ProjectileManager(this.scene);
+
+    // 2D HUD overlay above the WebGL canvas
+    this.hud = document.createElement('canvas');
+    this.hud.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:5;';
+    document.body.appendChild(this.hud);
+    this.hctx = this.hud.getContext('2d');
+
+    this.ray = new THREE.Raycaster();
+    this.seaPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this._camTarget = new THREE.Vector3(WORLD / 2, 0, WORLD / 2);
+
     this.resize();
   }
 
-  resize() { this.canvas.width = window.innerWidth; this.canvas.height = window.innerHeight; }
+  resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    this.renderer.setSize(w, h, false);
+    this.hud.width = w; this.hud.height = h;
+    this._aspect = w / h;
+    this._applyFrustum(1);
+  }
+
+  _applyFrustum(scale) {
+    const vh = BASE_VIEW / scale;
+    const vw = vh * this._aspect;
+    const c = this.camera;
+    c.left = -vw; c.right = vw; c.top = vh; c.bottom = -vh;
+    c.updateProjectionMatrix();
+  }
 
   draw(state, cam, meId) {
-    const ctx = this.ctx;
-    const canvas = this.canvas;
-    cam.cx = canvas.width / 2; cam.cy = canvas.height / 2;
     const now = performance.now();
+    const t = now / 1000;
 
-    this.water.draw(ctx, canvas.width, canvas.height, cam, now, ISLANDS, state.bases);
-    drawIslands(ctx, ISLANDS, cam, now);
-    for (const b of state.bases) drawBase(ctx, b, cam, now);
-    this.fx.drawFires(ctx, state.fires, cam, now);
+    // camera follows the player, fixed AoE angle
+    this._camTarget.set(cam.x, 0, cam.y);
+    this._applyFrustum(cam.scale || 1);
+    this.camera.position.copy(this._camTarget).addScaledVector(CAM_DIR, CAM_DIST);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(this._camTarget);
+    this.camera.updateMatrixWorld();
+    // keep the sun shadow box over the action
+    this.sun.position.copy(this._camTarget).add(new THREE.Vector3(-900, 1500, 650));
+    this.sun.target.position.copy(this._camTarget);
+    this.sun.target.updateMatrixWorld();
 
-    const liveIds = new Set(state.ships.map((s) => s.id));
-    for (const id of [...this.shipFx.keys()]) if (!liveIds.has(id)) this.shipFx.delete(id);
+    updateWater(this.water, t, this.camera.position);
+    this.ships.update(state.ships, t, now);
+    this.bases.update(state.bases, t);
+    this.proj.update(state.projectiles, state.fires, t, now);
 
-    const ships = [...state.ships].sort((a, b) => a.y - b.y);
-    for (const s of ships) {
-      const fx = this._updateShipFx(s, now, cam);
-      if (s.alive) {
-        if (fx.moving) this.fx.drawWake(ctx, fx, cam, now);
-        else this.fx.drawIdleRipple(ctx, fx, cam, now);
-      }
-
-      const bobFreq = fx.moving ? 2.6 : 1.4;
-      const bobAmp = (fx.moving ? 3.2 : 1.6) * cam.scale;
-      const bob = Math.sin(now * 0.001 * bobFreq + fx.bobPhase) * bobAmp - (fx.moving ? 1.4 * cam.scale : 0);
-      const rollFreq = fx.moving ? 2.1 : 1.1;
-      const rollAmp = fx.moving ? 0.055 : 0.022;
-      const roll = Math.sin(now * 0.001 * rollFreq + fx.rollPhase) * rollAmp;
-      const sinkT = fx.deadSince != null ? Math.min(1, (now - fx.deadSince) / SINK_DURATION) : 0;
-
-      const pos = worldToScreen(s.x, s.y, cam);
-      drawShip(ctx, s, pos, cam.scale, { heading: fx.heading, bob, roll, moving: fx.moving, sinkT }, now);
-
-      if (!s.alive && sinkT < 1) this.fx.drawBubbles(ctx, fx, cam, now);
-    }
-
-    this.fx.drawProjectiles(ctx, state.projectiles, cam, now);
-    this.fx.drawSplashes(ctx, cam, now);
-
-    this._hud(state, meId);
-    drawVignette(ctx, canvas.width, canvas.height);
+    this.renderer.render(this.scene, this.camera);
+    drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS);
   }
 
-  // Derives smoothed screen-space heading, bob/roll phase, wake trail and
-  // sink timing for one ship from frame-to-frame movement. Cached per ship
-  // id so each vessel bobs/turns independently and dead ships remember when
-  // they sank.
-  _updateShipFx(ship, now, cam) {
-    let fx = this.shipFx.get(ship.id);
-    if (!fx) {
-      fx = {
-        heading: ship.faction === 'pirate' ? 0 : Math.PI,
-        bobPhase: Math.random() * Math.PI * 2,
-        rollPhase: Math.random() * Math.PI * 2,
-        lastX: ship.x, lastY: ship.y, lastT: now,
-        speed: 0, moving: false,
-        wake: [], lastWake: 0,
-        deadSince: null, bubbles: [], lastBubble: 0,
-      };
-      this.shipFx.set(ship.id, fx);
-    }
-
-    const dtSec = Math.max(1, now - fx.lastT) / 1000;
-    const dx = ship.x - fx.lastX, dy = ship.y - fx.lastY;
-    const dist = Math.hypot(dx, dy);
-    const instSpeed = dist / dtSec;
-    fx.speed = fx.speed * 0.8 + instSpeed * 0.2;
-    fx.moving = fx.speed > MOVING_SPEED;
-
-    if (dist > MOVE_EPS) {
-      const target = screenAngleForWorldDir(fx.lastX, fx.lastY, dx, dy, cam);
-      fx.heading = lerpAngle(fx.heading, target, 0.18);
-    }
-
-    if (ship.alive) {
-      fx.deadSince = null;
-      if (fx.moving && now - fx.lastWake > WAKE_INTERVAL) {
-        fx.lastWake = now;
-        const ux = dist > 0.01 ? dx / dist : Math.cos(fx.heading);
-        const uy = dist > 0.01 ? dy / dist : Math.sin(fx.heading);
-        fx.wake.push({ x: ship.x - ux * 16, y: ship.y - uy * 16, born: now });
-        if (fx.wake.length > 40) fx.wake.shift();
-      }
-    } else if (fx.deadSince == null) {
-      fx.deadSince = now;
-    }
-
-    fx.lastX = ship.x; fx.lastY = ship.y; fx.lastT = now;
-    return fx;
-  }
-
-  _hud(state, meId) {
-    const ctx = this.ctx;
-    const pirate = state.bases.find((b) => b.faction === 'pirate');
-    const navy = state.bases.find((b) => b.faction === 'navy');
-    if (pirate && navy) drawTopBars(ctx, this.canvas.width, pirate, navy);
-    const mine = state.ships.find((s) => s.id === meId);
-    drawOwnPanel(ctx, this.canvas.height, mine);
-    drawMinimap(ctx, this.canvas.width, ISLANDS, state.bases, state.ships, meId);
+  // Screen pixel -> world (x, y) by casting a ray onto the sea plane (Y=0).
+  screenToWorld(clientX, clientY) {
+    const ndc = new THREE.Vector2(
+      (clientX / window.innerWidth) * 2 - 1,
+      -(clientY / window.innerHeight) * 2 + 1
+    );
+    this.ray.setFromCamera(ndc, this.camera);
+    const hit = new THREE.Vector3();
+    this.ray.ray.intersectPlane(this.seaPlane, hit);
+    if (!hit) return { x: this._camTarget.x, y: this._camTarget.z };
+    return { x: hit.x, y: hit.z };
   }
 }

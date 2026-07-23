@@ -27,7 +27,7 @@ async function boot() {
     canvas.classList.remove('hidden');
     renderer = new Renderer(canvas);
     window.addEventListener('resize', () => renderer.resize());
-    new Input(canvas, cam, net, currentState, myId);
+    new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y));
     requestAnimationFrame(loop);
   });
 

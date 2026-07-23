@@ -1,10 +1,11 @@
 // client/js/input.js
-import { screenToWorld } from './iso.js';
-
+// Translates mouse/keyboard into intent messages. World coordinates come from
+// the renderer's raycast (screenToWorld) so input matches the 3D camera.
 export class Input {
-  constructor(canvas, cam, net, getState, getMeId) {
-    this.canvas = canvas; this.cam = cam; this.net = net;
+  constructor(canvas, net, getState, getMeId, screenToWorld) {
+    this.canvas = canvas; this.net = net;
     this.getState = getState; this.getMeId = getMeId;
+    this.s2w = screenToWorld;
     this.mouse = { x: 0, y: 0 };
     this.aiming = false; this.aimStart = null;
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -16,7 +17,7 @@ export class Input {
   _me() { return (this.getState()?.ships || []).find((s) => s.id === this.getMeId()); }
   _down(e) {
     if (e.button === 0) {
-      const w = screenToWorld(e.clientX, e.clientY, this.cam);
+      const w = this.s2w(e.clientX, e.clientY);
       this.net.send({ type: 'move', x: w.x, y: w.y });
     } else if (e.button === 2) { this.aiming = true; this.aimStart = { x: e.clientX, y: e.clientY }; }
   }
@@ -24,7 +25,7 @@ export class Input {
     if (e.button === 2 && this.aiming) {
       this.aiming = false;
       const me = this._me(); if (!me) return;
-      const w = screenToWorld(e.clientX, e.clientY, this.cam);
+      const w = this.s2w(e.clientX, e.clientY);
       const dir = { x: w.x - me.x, y: w.y - me.y };
       const dragLen = Math.hypot(e.clientX - this.aimStart.x, e.clientY - this.aimStart.y);
       const power = Math.max(0.1, Math.min(1, dragLen / 300));
@@ -33,7 +34,7 @@ export class Input {
   }
   _key(e) {
     const me = this._me(); if (!me) return;
-    const w = screenToWorld(this.mouse.x, this.mouse.y, this.cam);
+    const w = this.s2w(this.mouse.x, this.mouse.y);
     const k = e.key.toLowerCase();
     if (k === 'a') this.net.send({ type:'fire', weapon:'archer', dir:{ x:w.x-me.x, y:w.y-me.y } });
     if (k === 'm') this.net.send({ type:'fire', weapon:'molotov', aim:{ x:w.x, y:w.y } });
