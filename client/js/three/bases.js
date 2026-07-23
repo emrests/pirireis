@@ -46,8 +46,8 @@ function buildFort(faction) {
 
   // shrink the fort and push it toward the map edge, so ships spawn (at base
   // centre) in open water in FRONT of the harbour instead of inside it.
-  struct.scale.setScalar(0.55);
-  struct.position.x = -pierDir * 210;
+  struct.scale.setScalar(0.75);
+  struct.position.x = -pierDir * 300;
   g.add(struct);
 
   // pulsing heal ring on the water, kept centred on the base position

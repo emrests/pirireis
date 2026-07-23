@@ -107,7 +107,7 @@ function buildShip(cls, faction, flagColor) {
     m.rotation.z = 0.5; m.position.set(0.1, 0.62, 0); g.add(m);
   }
 
-  const scale = spec.s * 1.05; // world units; ~45u sloop … ~95u galleon
+  const scale = spec.s * 1.7; // prominent at the AoE zoom (small 6-8p arena)
   g.scale.setScalar(scale);
   return { group: g, sails, flag, brazier, flagMat, sailMat, scale };
 }

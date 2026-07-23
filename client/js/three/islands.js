@@ -89,33 +89,38 @@ export function createIslands(list) {
     const surf = new THREE.Mesh(surfGeo, new THREE.MeshBasicMaterial({ color: 0xe8f6f8, transparent: true, opacity: 0.45, depthWrite: false }));
     surf.position.y = 1.2; grp.add(surf);
 
-    // dense vegetation + rocks + a few islanders (NPCs) scattered inside
-    const n = Math.round(isl.r / 16);
-    const people = Math.max(2, Math.round(isl.r / 90));
+    // height of the mound's top surface at radius rr (mound mesh sits at y=2,
+    // cylinder half-height r*0.45, plus the domed displacement) — objects must
+    // sit ON this, not on the flat base, or they get buried in the hill.
+    const surfaceY = (rr) => 2 + isl.r * 0.45 + Math.max(0, 1 - (rr / isl.r) ** 2) * isl.r * 0.5;
+
+    // dense vegetation + rocks scattered inside
+    const n = Math.round(isl.r / 14);
     for (let i = 0; i < n; i++) {
-      // pseudo-random but stable placement
       const ang = i * 2.399963 + isl.x * 0.01;
-      const rr = isl.r * (0.1 + 0.72 * ((i * 13) % 7) / 7);
+      const rr = isl.r * (0.08 + 0.78 * ((i * 13) % 7) / 7);
       const px = Math.cos(ang) * rr, pz = Math.sin(ang) * rr;
-      const dome = Math.max(0, 1 - (rr / isl.r) ** 2) * isl.r * 0.5;
+      const y = surfaceY(rr);
       const roll = (i * 7) % 10;
       if (roll < 2) {
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(5 + roll * 2), rockMat);
-        rock.position.set(px, dome + 3, pz); rock.rotation.set(roll, roll * 1.3, 0); rock.castShadow = true; grp.add(rock);
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(7 + roll * 3), rockMat);
+        rock.position.set(px, y + 3, pz); rock.rotation.set(roll, roll * 1.3, 0); rock.castShadow = true; grp.add(rock);
       } else {
         const t = tree();
-        t.position.set(px, dome + 2, pz);
-        t.scale.setScalar(0.75 + ((i * 3) % 5) * 0.14);
+        t.position.set(px, y - 3, pz);
+        t.scale.setScalar((1.3 + ((i * 3) % 5) * 0.18) * (isl.r / 210));
         grp.add(t);
       }
     }
+    // a few islanders (NPCs) so the island feels inhabited
+    const people = Math.max(3, Math.round(isl.r / 55));
     for (let i = 0; i < people; i++) {
       const ang = i * 1.7 + isl.y * 0.01;
-      const rr = isl.r * (0.12 + 0.4 * ((i * 5) % 4) / 4);
+      const rr = isl.r * (0.1 + 0.42 * ((i * 5) % 4) / 4);
       const px = Math.cos(ang) * rr, pz = Math.sin(ang) * rr;
-      const dome = Math.max(0, 1 - (rr / isl.r) ** 2) * isl.r * 0.5;
       const p = person();
-      p.position.set(px, dome + 2, pz);
+      p.position.set(px, surfaceY(rr) - 1, pz);
+      p.scale.multiplyScalar(2.2 * (isl.r / 210));
       grp.add(p);
     }
     root.add(grp);
