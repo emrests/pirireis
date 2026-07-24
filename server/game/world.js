@@ -60,6 +60,11 @@ export class World {
       return;
     }
     if (msg.type === 'useSkill') { return; } // buffs are auto-granted; reserved
+    if (msg.type === 'heal') {
+      // spend a full heal charge (earned by dealing 100 damage) for +20 HP
+      if (s.dmgDealt >= 100) { s.hp = Math.min(s.maxHp, s.hp + 20); s.dmgDealt -= 100; }
+      return;
+    }
     if (msg.type === 'donate') {
       if (typeof msg.targetPlayerId !== 'string') return;
       const to = this.ships.get(msg.targetPlayerId);
@@ -316,6 +321,7 @@ export class World {
         if (dist(s.pos, p.pos) <= p.hitRadius + s.radius) {
           const died = s.damage(p.dmg);
           hits++;
+          if (owner && !owner.npc) owner.dmgDealt += p.dmg; // heal charge
           if (died) this._killShip(s, owner, hits, p.kind === 'bullet' ? 'bullet' : 'cannon', now, events);
           if (!p.pierce) { consumed = true; break; }
         }
@@ -327,6 +333,7 @@ export class World {
           if (base.alive && dist(base.pos, p.pos) <= p.hitRadius + BASE.baseHitPad) {
             const died = base.damage(p.dmg);
             base.lastHitAt = now;
+            if (owner && !owner.npc) owner.dmgDealt += p.dmg; // heal charge
             events.push({ type: 'baseHit', faction: f, hp: base.hp });
             if (died) this._endGame(p.faction, events);
             consumed = true;
@@ -348,6 +355,7 @@ export class World {
         for (const s of this.ships.values()) {
           if (s.alive && s.faction !== fire.faction && !s.safe && fire.contains(s.pos)) {
             const died = s.damage(fire.burst);
+            if (owner && !owner.npc) owner.dmgDealt += fire.burst;
             if (died) this._killShip(s, owner, 1, 'cannon', now, events);
           }
         }
@@ -356,7 +364,9 @@ export class World {
         const owner = this.ships.get(fire.owner);
         for (const s of this.ships.values()) {
           if (s.alive && s.faction !== fire.faction && !s.safe && fire.contains(s.pos)) {
-            const died = s.damage(fire.dotPerSec * (dtMs / 1000));
+            const dmg = fire.dotPerSec * (dtMs / 1000);
+            const died = s.damage(dmg);
+            if (owner && !owner.npc) owner.dmgDealt += dmg;
             if (died) this._killShip(s, owner, 1, 'cannon', now, events);
           }
         }

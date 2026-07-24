@@ -86,6 +86,22 @@ test('malformed donate (non-string targetPlayerId) does not crash', () => {
   assert.doesNotThrow(() => w.input('a', { type:'donate', targetPlayerId: 123 }));
 });
 
+test('heal charge needs 100 damage dealt, then gives +20 HP', () => {
+  const w = new World('r');
+  const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'galleon', flagColor:'#f00' });
+  a.pos = { x: 2000, y: 200 };
+  a.hp = a.maxHp - 50;
+  // not enough charge -> no heal
+  a.dmgDealt = 50;
+  w.input('a', { type:'heal' });
+  assert.equal(a.hp, a.maxHp - 50, 'no heal below a full charge');
+  // full charge -> +20 and charge spent
+  a.dmgDealt = 100;
+  w.input('a', { type:'heal' });
+  assert.equal(a.hp, a.maxHp - 30, '+20 HP');
+  assert.ok(a.dmgDealt < 100, 'charge spent');
+});
+
 test('bases spawn low-HP NPC soldier boats on the interval', () => {
   const w = new World('r');
   w.addShip({ id:'a', name:'A', faction:'pirate', cls:'galleon', flagColor:'#f00' });

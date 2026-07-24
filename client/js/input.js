@@ -65,9 +65,8 @@ export class Input {
     else if (k === 'w') { this.weapon = 'rifle'; this.renderer.setWeapon('rifle'); }
     else if (k === 'e') { this.weapon = 'molotov'; this.renderer.setWeapon('molotov'); }
     else if (k === 'r') {
-      const me = this._me(); if (!me) return;
-      const b = (this.getState()?.bases || []).find((x) => x.faction === me.faction);
-      if (b) { this.net.send({ type: 'move', x: b.x, y: b.y }); this.renderer.setMoveMarker({ x: b.x, y: b.y }); }
+      // spend a full heal charge (fills as you deal damage) for +20 HP
+      this.net.send({ type: 'heal' });
     }
   }
 

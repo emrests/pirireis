@@ -47,7 +47,7 @@ const ABILITIES = [
   { key: 'cannon',  label: 'Q', icon: '💣', name: 'Top' },
   { key: 'rifle',   label: 'W', icon: '🔫', name: 'Tüfek' },
   { key: 'molotov', label: 'E', icon: '🔥', name: 'Molotof' },
-  { key: 'heal',    label: 'R', icon: '💚', name: 'Healing' },
+  { key: 'heal',    label: 'R', icon: '💚', name: '+20 Can' },
 ];
 
 function abilityCooldown(key, mine) {
@@ -86,6 +86,18 @@ function drawAbilityBar(ctx, W, H, mine, abilities, now, selected) {
       ctx.fillRect(x, y, sz, sz * frac);
       ctx.fillStyle = '#fff'; ctx.font = '700 20px system-ui';
       ctx.fillText(Math.ceil((cd - el) / 1000) + '', x + sz / 2, y + sz / 2);
+    }
+    // heal charge (fills as you deal damage; 100 dmg = full = +20 HP)
+    if (ab.key === 'heal') {
+      const pct = mine ? (mine.healPct || 0) : 0;
+      ctx.fillStyle = 'rgba(46,204,113,0.38)';
+      ctx.fillRect(x, y + sz * (1 - pct), sz, sz * pct);
+      if (pct >= 1) {
+        ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 3; roundRect(ctx, x, y, sz, sz, 9); ctx.stroke();
+        ctx.fillStyle = '#eaffea'; ctx.font = '700 10px system-ui'; ctx.fillText('HAZIR', x + sz / 2, y + sz - 20);
+      } else {
+        ctx.fillStyle = '#cfe'; ctx.font = '700 10px system-ui'; ctx.fillText(Math.round(pct * 100) + '%', x + sz / 2, y + sz - 20);
+      }
     }
     // key badge
     ctx.fillStyle = '#0e2233'; ctx.strokeStyle = 'rgba(150,190,220,0.7)'; ctx.lineWidth = 1.5;

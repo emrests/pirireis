@@ -13,6 +13,7 @@ export const MSG = {
   FIRE: 'fire',
   USE_SKILL: 'useSkill',
   DONATE: 'donate',
+  HEAL: 'heal',
   START_GAME: 'startGame',
   SET_TEAM: 'setTeam',
   SET_NPC: 'setNpc',
