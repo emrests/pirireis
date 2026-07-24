@@ -29,12 +29,12 @@ const httpServer = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: httpServer });
 
-// roomId -> { room, sockets:Set }
+// roomId -> { room, sockets:Set, phase:'lobby'|'playing', hostId, lobby:Map(id->cfg) }
 const rooms = new Map();
 
 function getRoom(id) {
   if (!rooms.has(id)) {
-    const entry = { room: null, sockets: new Set() };
+    const entry = { room: null, sockets: new Set(), phase: 'lobby', hostId: null, lobby: new Map() };
     entry.room = new Room(id, (obj) => {
       const data = JSON.stringify(obj);
       for (const ws of entry.sockets) { if (ws.readyState === ws.OPEN) ws.send(data); }
@@ -45,7 +45,15 @@ function getRoom(id) {
 }
 
 function roomList() {
-  return [...rooms.entries()].map(([id, e]) => ({ id, players: e.room.playerCount() }));
+  return [...rooms.entries()].map(([id, e]) => ({ id, players: e.lobby.size, phase: e.phase }));
+}
+
+function send(ws, obj) { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj)); }
+function broadcast(entry, obj) { const d = JSON.stringify(obj); for (const ws of entry.sockets) if (ws.readyState === ws.OPEN) ws.send(d); }
+
+function broadcastLobby(entry) {
+  const players = [...entry.lobby.entries()].map(([id, c]) => ({ id, nick: c.name, faction: c.faction }));
+  broadcast(entry, { type: MSG.LOBBY, players, hostId: entry.hostId, phase: entry.phase });
 }
 
 let _id = 0;
@@ -55,40 +63,52 @@ wss.on('connection', (ws) => {
 
   ws.on('message', (raw) => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
-    if (msg.type === MSG.LIST_ROOMS) {
-      ws.send(JSON.stringify({ type: MSG.ROOMS, rooms: roomList() }));
-      return;
-    }
+
+    if (msg.type === MSG.LIST_ROOMS) { send(ws, { type: MSG.ROOMS, rooms: roomList() }); return; }
+
     if (msg.type === MSG.JOIN) {
       const { room, nick, faction, shipClass, flagColor } = msg;
       if (!SHIP_CLASSES[faction] || !SHIP_CLASSES[faction].includes(shipClass)) {
-        ws.send(JSON.stringify({ type: MSG.ERROR, error: 'invalid faction/ship' })); return;
+        send(ws, { type: MSG.ERROR, error: 'invalid faction/ship' }); return;
       }
       const entry = getRoom(room || 'default');
-      const wasEmpty = entry.room.playerCount() === 0;
+      if (entry.phase === 'playing') { send(ws, { type: MSG.ERROR, error: 'Oyun başladı, katılınamaz.' }); return; }
       entry.sockets.add(ws);
       ws.roomId = room || 'default';
-      entry.room.join({ id: ws.playerId, name: (nick||'Sailor').slice(0,16), faction, cls: shipClass, flagColor: flagColor || '#ffffff' });
-      ws.send(JSON.stringify({ type: MSG.JOINED, playerId: ws.playerId }));
-      if (wasEmpty) entry.room.start();
+      entry.lobby.set(ws.playerId, { name: (nick || 'Sailor').slice(0, 16), faction, cls: shipClass, flagColor: flagColor || '#ffffff' });
+      if (!entry.hostId) entry.hostId = ws.playerId;
+      send(ws, { type: MSG.JOINED, playerId: ws.playerId, hostId: entry.hostId });
+      broadcastLobby(entry);
       return;
     }
-    if (ws.roomId && rooms.has(ws.roomId)) {
-      try {
-        rooms.get(ws.roomId).room.handle(ws.playerId, msg);
-      } catch (err) {
-        console.error('gameplay intent handling failed:', err);
-      }
+
+    if (msg.type === MSG.START_GAME) {
+      const entry = ws.roomId && rooms.get(ws.roomId);
+      if (!entry || entry.phase !== 'lobby' || ws.playerId !== entry.hostId) return;
+      if (entry.lobby.size === 0) return;
+      entry.phase = 'playing';
+      for (const [pid, cfg] of entry.lobby) entry.room.join({ id: pid, ...cfg });
+      broadcast(entry, { type: MSG.STARTED });
+      entry.room.start();
+      return;
+    }
+
+    // gameplay intents only once the match is running
+    const entry = ws.roomId && rooms.get(ws.roomId);
+    if (entry && entry.phase === 'playing') {
+      try { entry.room.handle(ws.playerId, msg); } catch (err) { console.error('gameplay intent handling failed:', err); }
     }
   });
 
   ws.on('close', () => {
-    if (ws.roomId && rooms.has(ws.roomId)) {
-      const entry = rooms.get(ws.roomId);
-      entry.sockets.delete(ws);
-      entry.room.leave(ws.playerId);
-      if (entry.room.playerCount() === 0) { entry.room.stop(); rooms.delete(ws.roomId); }
-    }
+    const entry = ws.roomId && rooms.get(ws.roomId);
+    if (!entry) return;
+    entry.sockets.delete(ws);
+    entry.lobby.delete(ws.playerId);
+    if (entry.phase === 'playing') entry.room.leave(ws.playerId);
+    if (entry.hostId === ws.playerId) entry.hostId = entry.lobby.size ? [...entry.lobby.keys()][0] : null;
+    if (entry.sockets.size === 0) { entry.room.stop(); rooms.delete(ws.roomId); }
+    else if (entry.phase === 'lobby') broadcastLobby(entry);
   });
 });
 

@@ -46,16 +46,17 @@ function abilityCooldown(key, mine) {
   return 0; // heal has no cooldown
 }
 
-function drawAbilityBar(ctx, W, H, mine, abilities, now) {
+function drawAbilityBar(ctx, W, H, mine, abilities, now, selected) {
   const n = ABILITIES.length, sz = 60, gap = 12;
   const total = n * sz + (n - 1) * gap;
   let x = (W - total) / 2;
   const y = H - sz - 22;
   panel(ctx, x - 12, y - 12, total + 24, sz + 30, 12);
   for (const ab of ABILITIES) {
-    // slot background
-    ctx.fillStyle = 'rgba(16,32,46,0.92)';
-    ctx.strokeStyle = 'rgba(150,190,220,0.5)'; ctx.lineWidth = 2;
+    const on = ab.key === selected;
+    // slot background (selected weapon glows)
+    ctx.fillStyle = on ? 'rgba(30,70,100,0.95)' : 'rgba(16,32,46,0.92)';
+    ctx.strokeStyle = on ? '#ffd24a' : 'rgba(150,190,220,0.5)'; ctx.lineWidth = on ? 3 : 2;
     roundRect(ctx, x, y, sz, sz, 9); ctx.fill(); ctx.stroke();
     // icon
     ctx.font = '30px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -94,7 +95,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-export function drawHUD(ctx, W, H, state, meId, islands, abilities, now) {
+export function drawHUD(ctx, W, H, state, meId, islands, abilities, now, selectedWeapon) {
   ctx.clearRect(0, 0, W, H);
   const pirate = state.bases.find((b) => b.faction === 'pirate');
   const navy = state.bases.find((b) => b.faction === 'navy');
@@ -181,6 +182,6 @@ export function drawHUD(ctx, W, H, state, meId, islands, abilities, now) {
   }
   ctx.restore();
 
-  // LoL-style ability bar (weapons + keybinds + cooldowns), bottom-centre
-  drawAbilityBar(ctx, W, H, mine, abilities, now);
+  // ability bar: Q/W/E select a weapon (highlighted), R heals; LEFT-click fires
+  drawAbilityBar(ctx, W, H, mine, abilities, now, selectedWeapon);
 }

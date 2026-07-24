@@ -20,8 +20,24 @@
       <div id="ships" class="ships"></div>
       <label class="flabel">Bayrak rengi:</label>
       <div id="flags" class="flags"></div>
-      <button type="submit">Savaşa Gir</button>
+      <div id="joinErr" class="err hidden"></div>
+      <button type="submit">Odaya Katıl</button>
     </form>
+  </div>
+  <div id="lobbyRoom" class="screen hidden">
+    <h1>⚓ Lobi — <span id="roomName"></span></h1>
+    <div class="roster">
+      <div class="team">
+        <h2>🏴‍☠️ Korsan (<span id="pcount">0</span>)</h2>
+        <ul id="plist"></ul>
+      </div>
+      <div class="team">
+        <h2>⚓ Donanma (<span id="ncount">0</span>)</h2>
+        <ul id="nlist"></ul>
+      </div>
+    </div>
+    <button id="startBtn" class="hidden">Oyunu Başlat</button>
+    <div id="waitMsg" class="hidden">Kurucunun oyunu başlatması bekleniyor…</div>
   </div>
   <canvas id="game" class="screen hidden"></canvas>
   <div id="audioCtl" class="hidden">

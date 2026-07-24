@@ -23,6 +23,11 @@ const SHIP_TOP = {
   sloop:95, cutter:95, brig:115, corvette:115, frigate:125, frigate_n:125,
   galleon:165, shipofline:170, fireship:125, bombketch:130,
 };
+// cannon range per class (mirrors balance SHIPS.range)
+const WEAPON_RANGE = {
+  sloop:520, brig:620, frigate:680, galleon:820, fireship:520,
+  cutter:520, corvette:700, frigate_n:700, shipofline:860, bombketch:1100,
+};
 
 // Island list mirrors server/game/map.js (kept in sync manually).
 export const ISLANDS = [
@@ -79,11 +84,17 @@ export class Renderer {
     this.abilities = { cannon: 0, rifle: 0, molotov: 0, heal: 0 };
     this._lastT = performance.now();
 
-    // aim target marker (set by right-click via Input.onTarget)
+    // move-destination marker (right-click; only this client sees it)
     this.targetPoint = null;
-    const rg = new THREE.RingGeometry(46, 66, 28); rg.rotateX(-Math.PI / 2);
-    this.reticle = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0x66e0ff, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
+    const rg = new THREE.RingGeometry(40, 58, 28); rg.rotateX(-Math.PI / 2);
+    this.reticle = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0x8affa0, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
     this.reticle.visible = false; this.scene.add(this.reticle);
+
+    // selected-weapon range ring around own ship
+    this.selectedWeapon = 'cannon';
+    const rr = new THREE.RingGeometry(0.986, 1, 72); rr.rotateX(-Math.PI / 2);
+    this.rangeRing = new THREE.Mesh(rr, new THREE.MeshBasicMaterial({ color: 0x66e0ff, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide }));
+    this.rangeRing.visible = false; this.scene.add(this.rangeRing);
 
     // 2D HUD overlay above the WebGL canvas
     this.hud = document.createElement('canvas');
@@ -115,7 +126,13 @@ export class Renderer {
   }
 
   markAbility(name) { if (name in this.abilities) this.abilities[name] = performance.now(); }
-  setTarget(x, y) { this.targetPoint = { x, y }; }
+  setMoveMarker(p) { this.targetPoint = { x: p.x, y: p.y }; }
+  setWeapon(w) { this.selectedWeapon = w; }
+  _weaponRange(cls) {
+    if (this.selectedWeapon === 'rifle') return 660;
+    if (this.selectedWeapon === 'molotov') return 600;
+    return WEAPON_RANGE[cls] || 700;
+  }
 
   // floating HP bars + names above every ship and base, projected to the overlay
   _floatingBars(state, t) {
@@ -184,9 +201,16 @@ export class Renderer {
       this.reticle.rotation.y = t * 1.5;
       this.reticle.scale.setScalar(1 + 0.12 * Math.sin(t * 5));
     }
+    // range ring for the selected weapon, around own ship
+    const meShip = state.ships.find((s) => s.id === meId);
+    if (meShip && meShip.alive) {
+      this.rangeRing.visible = true;
+      this.rangeRing.position.set(meShip.x, 4, meShip.y);
+      this.rangeRing.scale.setScalar(this._weaponRange(meShip.cls));
+    } else { this.rangeRing.visible = false; }
 
     this.renderer.render(this.scene, this.camera);
-    drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS, this.abilities, now);
+    drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS, this.abilities, now, this.selectedWeapon);
     this._floatingBars(state, t);
   }
 

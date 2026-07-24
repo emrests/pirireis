@@ -13,9 +13,12 @@ export const MSG = {
   FIRE: 'fire',
   USE_SKILL: 'useSkill',
   DONATE: 'donate',
+  START_GAME: 'startGame',
   // server -> client
   ROOMS: 'rooms',
   JOINED: 'joined',
+  LOBBY: 'lobby',
+  STARTED: 'started',
   SNAPSHOT: 'snapshot',
   EVENT: 'event',
   ERROR: 'error',

@@ -16,6 +16,17 @@ body { margin:0; font-family: system-ui, sans-serif; background:#0b1e2d; color:#
 .flags .flag { aspect-ratio:1; border-radius:6px; cursor:pointer; border:2px solid transparent; box-shadow:0 0 0 1px #0006 inset; }
 .flags .flag.sel { border-color:#fff; transform:scale(1.12); }
 #joinForm input.invalid { border-color:#e63946; box-shadow:0 0 0 2px #e6394655; }
+.err { color:#ff8a80; font-size:.85rem; }
+.err.hidden { display:none; }
+#lobbyRoom { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; padding:24px; z-index:20; }
+#lobbyRoom h1 { font-size:1.8rem; }
+.roster { display:flex; gap:24px; width:min(640px,92vw); }
+.roster .team { flex:1; background:#12324a; border:1px solid #24506f; border-radius:12px; padding:16px; min-height:180px; }
+.roster .team h2 { margin:0 0 10px; font-size:1.05rem; }
+.roster .team ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+.roster .team li { background:#0d2537; padding:8px 10px; border-radius:7px; font-size:.9rem; }
+#startBtn { padding:14px 34px; border:0; border-radius:10px; background:#2ecc71; color:#04120a; font-weight:800; font-size:1.05rem; cursor:pointer; }
+#waitMsg { color:#bcd; }
 #joinForm button { padding:12px; border:0; border-radius:8px; background:#e63946; color:#fff; font-weight:700; cursor:pointer; }
 #game { display:block; width:100vw; height:100vh; background:#12455f; }
 #audioCtl { position:fixed; top:12px; left:12px; z-index:8; display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:10px; background:rgba(8,20,30,0.6); border:1px solid rgba(255,255,255,0.12); color:#e8f1f8; font-size:14px; }

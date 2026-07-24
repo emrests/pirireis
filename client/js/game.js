@@ -16,29 +16,70 @@ let clockOffset = 0; // Date.now() - serverT
 
 const currentState = () => latestState;
 const myId = () => meId;
+let isHost = false;
 
 async function boot() {
   await net.connect(`ws://${location.host}`);
   net.send({ type: 'listRooms' });
 
+  // joined the lobby (not spawned yet) -> show the room roster
   net.on('joined', (m) => {
     meId = m.playerId;
+    isHost = m.hostId === m.playerId;
     document.getElementById('lobby').classList.add('hidden');
-    const canvas = document.getElementById('game');
-    canvas.classList.remove('hidden');
-    renderer = new Renderer(canvas);
-    window.addEventListener('resize', () => renderer.resize());
-    new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y),
-      (name) => renderer.markAbility(name), (pt) => renderer.setTarget(pt.x, pt.y));
-    setupAudioUI();
-    audio.startMusic();
-    requestAnimationFrame(loop);
+    document.getElementById('lobbyRoom').classList.remove('hidden');
+    document.getElementById('roomName').textContent = window.__room || '';
+    document.getElementById('startBtn').onclick = () => net.send({ type: 'startGame' });
   });
+
+  net.on('lobby', (m) => renderRoster(m));
+  net.on('error', (m) => showJoinError(m.error));
+  net.on('started', () => startMatch());
 
   net.on('snapshot', (m) => { buffer.push(m); clockOffset = Date.now() - m.t; });
   net.on('event', (m) => { for (const e of m.events) if (e.type === 'gameOver') showEnd(e.winner); });
 
-  new Lobby(net, (info) => { audio.init(); net.send({ type: 'join', ...info }); });
+  new Lobby(net, (info) => { audio.init(); window.__room = info.room; net.send({ type: 'join', ...info }); });
+}
+
+function renderRoster(m) {
+  isHost = m.hostId === meId;
+  const p = m.players.filter((x) => x.faction === 'pirate');
+  const n = m.players.filter((x) => x.faction === 'navy');
+  document.getElementById('pcount').textContent = p.length;
+  document.getElementById('ncount').textContent = n.length;
+  const fill = (ul, arr) => {
+    ul.innerHTML = '';
+    for (const pl of arr) {
+      const li = document.createElement('li');
+      li.textContent = pl.nick + (pl.id === m.hostId ? ' 👑' : '') + (pl.id === meId ? ' (sen)' : '');
+      ul.appendChild(li);
+    }
+  };
+  fill(document.getElementById('plist'), p);
+  fill(document.getElementById('nlist'), n);
+  document.getElementById('startBtn').classList.toggle('hidden', !isHost);
+  document.getElementById('waitMsg').classList.toggle('hidden', isHost);
+}
+
+function showJoinError(err) {
+  // shown on the join form (e.g. game already started)
+  document.getElementById('lobbyRoom').classList.add('hidden');
+  document.getElementById('lobby').classList.remove('hidden');
+  const el = document.getElementById('joinErr');
+  el.textContent = err || 'Katılım başarısız'; el.classList.remove('hidden');
+}
+
+function startMatch() {
+  document.getElementById('lobbyRoom').classList.add('hidden');
+  const canvas = document.getElementById('game');
+  canvas.classList.remove('hidden');
+  renderer = new Renderer(canvas);
+  window.addEventListener('resize', () => renderer.resize());
+  new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y), renderer);
+  setupAudioUI();
+  audio.startMusic();
+  requestAnimationFrame(loop);
 }
 
 function setupAudioUI() {
