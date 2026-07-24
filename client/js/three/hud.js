@@ -31,6 +31,18 @@ const CANNON_RELOAD = {
   sloop:1400, brig:1700, frigate:2000, galleon:2900, fireship:2000,
   cutter:1400, corvette:1700, frigate_n:2000, shipofline:3000, bombketch:3200,
 };
+// full-power (close) cannon damage per class (mirrors SHIPS.cannonDmg)
+const CANNON_DMG = {
+  sloop:14, brig:20, frigate:26, galleon:44, fireship:16,
+  cutter:14, corvette:20, frigate_n:26, shipofline:46, bombketch:24,
+};
+// short label of each weapon's hit power, for the ability bar
+function abilityPower(key, mine) {
+  if (key === 'cannon') return String(CANNON_DMG[mine?.cls] || 26);
+  if (key === 'rifle') return '9×5';   // 9 dmg/bullet, 5-round burst
+  if (key === 'molotov') return '22/s'; // damage over time
+  return '';
+}
 const ABILITIES = [
   { key: 'cannon',  label: 'Q', icon: '💣', name: 'Top' },
   { key: 'rifle',   label: 'W', icon: '🔫', name: 'Tüfek' },
@@ -41,7 +53,7 @@ const ABILITIES = [
 function abilityCooldown(key, mine) {
   const fast = mine && mine.buffs && mine.buffs.includes('fastreload') ? 0.6 : 1;
   if (key === 'cannon') return (CANNON_RELOAD[mine?.cls] || 2000) * fast;
-  if (key === 'rifle') return 2400 * fast;   // rifle burst reload
+  if (key === 'rifle') return 2000 * fast;   // rifle burst reload
   if (key === 'molotov') return 6000 * fast;
   return 0; // heal has no cooldown
 }
@@ -61,6 +73,9 @@ function drawAbilityBar(ctx, W, H, mine, abilities, now, selected) {
     // icon
     ctx.font = '30px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(ab.icon, x + sz / 2, y + sz / 2 - 2);
+    // hit power (damage) badge, top-left of the slot
+    const pw = abilityPower(ab.key, mine);
+    if (pw) { ctx.font = '700 10px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = '#ffd27a'; ctx.fillText('⚔' + pw, x + 5, y + 12); ctx.textAlign = 'center'; }
     // cooldown sweep (dark, drains from top) + seconds
     const cd = abilityCooldown(ab.key, mine);
     const last = abilities ? abilities[ab.key] || 0 : 0;

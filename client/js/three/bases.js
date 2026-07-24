@@ -55,9 +55,9 @@ function buildFort(faction) {
   ringGeo.rotateX(-Math.PI / 2);
   const ringMat = new THREE.MeshBasicMaterial({ color: facColor, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide });
   const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.position.y = 2; g.add(ring);
+  ring.position.y = 17; g.add(ring); // above wave crests
   const disc = new THREE.Mesh(new THREE.CircleGeometry(HEAL_R, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: facColor, transparent: true, opacity: 0.06, depthWrite: false }));
-  disc.position.y = 1.5; g.add(disc);
+  disc.position.y = 15; g.add(disc);
 
   return { group: g, banner, ring, ringMat, keep };
 }

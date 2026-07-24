@@ -197,7 +197,7 @@ export class Renderer {
     // aim target marker (pulses on the water)
     if (this.targetPoint) {
       this.reticle.visible = true;
-      this.reticle.position.set(this.targetPoint.x, 6, this.targetPoint.y);
+      this.reticle.position.set(this.targetPoint.x, 18, this.targetPoint.y);
       this.reticle.rotation.y = t * 1.5;
       this.reticle.scale.setScalar(1 + 0.12 * Math.sin(t * 5));
     }
@@ -205,7 +205,7 @@ export class Renderer {
     const meShip = state.ships.find((s) => s.id === meId);
     if (meShip && meShip.alive) {
       this.rangeRing.visible = true;
-      this.rangeRing.position.set(meShip.x, 4, meShip.y);
+      this.rangeRing.position.set(meShip.x, 17, meShip.y);
       this.rangeRing.scale.setScalar(this._weaponRange(meShip.cls));
     } else { this.rangeRing.visible = false; }
 

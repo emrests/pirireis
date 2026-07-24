@@ -82,6 +82,17 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (msg.type === MSG.SET_TEAM) {
+      const entry = ws.roomId && rooms.get(ws.roomId);
+      if (!entry || entry.phase !== 'lobby') return;
+      const cfg = entry.lobby.get(ws.playerId);
+      if (!cfg || !SHIP_CLASSES[msg.faction]) return;
+      cfg.faction = msg.faction;
+      cfg.cls = SHIP_CLASSES[msg.faction][0]; // ship classes differ per faction -> reset to default
+      broadcastLobby(entry);
+      return;
+    }
+
     if (msg.type === MSG.START_GAME) {
       const entry = ws.roomId && rooms.get(ws.roomId);
       if (!entry || entry.phase !== 'lobby' || ws.playerId !== entry.hostId) return;

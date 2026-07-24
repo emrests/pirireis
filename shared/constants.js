@@ -14,6 +14,7 @@ export const MSG = {
   USE_SKILL: 'useSkill',
   DONATE: 'donate',
   START_GAME: 'startGame',
+  SET_TEAM: 'setTeam',
   // server -> client
   ROOMS: 'rooms',
   JOINED: 'joined',

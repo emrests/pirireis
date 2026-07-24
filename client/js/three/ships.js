@@ -7,9 +7,9 @@ import * as THREE from '/vendor/three.module.js';
 import { waveHeight, waveNormal } from './waves.js';
 
 const SINK_MS = 2600;
-const MOVE_EPS = 0.5;         // world units between frames to update heading
+const MOVE_EPS = 1.2;         // world units between frames to update heading
 const MOVING_SPEED = 12;      // world units/sec => "moving"
-const WAKE_MS = 90;
+const WAKE_MS = 220;         // ms between wake puffs (higher = subtler trail)
 
 // length,width,height, mast count, scale — bigger classes are larger.
 const CLASS = {
@@ -197,22 +197,22 @@ export class ShipManager {
   }
 
   _spawnWake(x, y, h, sc, e, now) {
-    const mat = new THREE.MeshBasicMaterial({ color: 0xdff2f7, transparent: true, opacity: 0.5, depthWrite: false });
+    const mat = new THREE.MeshBasicMaterial({ color: 0xdff2f7, transparent: true, opacity: 0.28, depthWrite: false });
     const m = new THREE.Mesh(RING_GEO, mat);
     m.position.set(x, h + 1.5, y);
-    const base = sc * 0.6;
+    const base = sc * 0.32;
     m.scale.setScalar(base);
     this.scene.add(m);
     e.wake.push({ m, born: now, base });
-    if (e.wake.length > 26) { const old = e.wake.shift(); this._free(old.m); }
+    if (e.wake.length > 12) { const old = e.wake.shift(); this._free(old.m); }
   }
   _agewake(e, tSec, now) {
     for (let i = e.wake.length - 1; i >= 0; i--) {
       const w = e.wake[i];
-      const k = (now - w.born) / 900;
+      const k = (now - w.born) / 800;
       if (k >= 1) { this._free(w.m); e.wake.splice(i, 1); continue; }
-      w.m.material.opacity = 0.5 * (1 - k);
-      w.m.scale.setScalar(w.base * (1 + k * 2.4));
+      w.m.material.opacity = 0.28 * (1 - k);
+      w.m.scale.setScalar(w.base * (1 + k * 1.8));
     }
   }
   _free(m) { this.scene.remove(m); m.material.dispose(); }

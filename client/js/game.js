@@ -30,13 +30,20 @@ async function boot() {
     document.getElementById('lobbyRoom').classList.remove('hidden');
     document.getElementById('roomName').textContent = window.__room || '';
     document.getElementById('startBtn').onclick = () => net.send({ type: 'startGame' });
+    document.querySelectorAll('.teamBtn').forEach((b) => { b.onclick = () => net.send({ type: 'setTeam', faction: b.dataset.faction }); });
   });
 
   net.on('lobby', (m) => renderRoster(m));
   net.on('error', (m) => showJoinError(m.error));
   net.on('started', () => startMatch());
 
-  net.on('snapshot', (m) => { buffer.push(m); clockOffset = Date.now() - m.t; });
+  net.on('snapshot', (m) => {
+    buffer.push(m);
+    // smooth the local<->server clock offset (EMA) so per-packet jitter doesn't
+    // shake the render clock -> ships glide instead of trembling
+    const off = Date.now() - m.t;
+    clockOffset = clockOffset === 0 ? off : clockOffset * 0.9 + off * 0.1;
+  });
   net.on('event', (m) => { for (const e of m.events) if (e.type === 'gameOver') showEnd(e.winner); });
 
   new Lobby(net, (info) => { audio.init(); window.__room = info.room; net.send({ type: 'join', ...info }); });
@@ -58,6 +65,8 @@ function renderRoster(m) {
   };
   fill(document.getElementById('plist'), p);
   fill(document.getElementById('nlist'), n);
+  const myFaction = (m.players.find((x) => x.id === meId) || {}).faction;
+  document.querySelectorAll('.teamBtn').forEach((b) => { b.disabled = b.dataset.faction === myFaction; });
   document.getElementById('startBtn').classList.toggle('hidden', !isHost);
   document.getElementById('waitMsg').classList.toggle('hidden', isHost);
 }

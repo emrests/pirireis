@@ -70,7 +70,7 @@ export function createIslands(list) {
     const surfGeo = new THREE.RingGeometry(isl.r * 1.12, isl.r * 1.34, 48);
     surfGeo.rotateX(-Math.PI / 2);
     const surf = new THREE.Mesh(surfGeo, new THREE.MeshBasicMaterial({ color: 0xe8f6f8, transparent: true, opacity: 0.45, depthWrite: false }));
-    surf.position.y = 1.2; grp.add(surf);
+    surf.position.y = 16; grp.add(surf); // above wave crests so the swell can't cover it
 
     // height of the mound's top surface at radius rr (mound mesh sits at y=2,
     // cylinder half-height r*0.45, plus the domed displacement) — objects must

@@ -24,7 +24,7 @@ export const CANNON = { minDmgFactor:0.3, speed:620, radius:14, hitRadius:34 };
 // Rifle ("Tüfek"): one key-press fires a 5-round automatic BURST, then must
 // reload (cooldownMs). Flat low damage per bullet, no falloff. (Field name
 // ARCHER kept so the 'archer' weapon id / streak wiring stays intact.)
-export const ARCHER = { dmg:9, cooldownMs:2400, range:660, speed:1600, hitRadius:24, spread:0.05, burst:5, burstIntervalMs:85 };
+export const ARCHER = { dmg:9, cooldownMs:2000, range:660, speed:1600, hitRadius:24, spread:0.05, burst:5, burstIntervalMs:85 };
 
 // Molotov: thrown area, lingering DoT.
 export const MOLOTOV = { cooldownMs:6000, radius:150, durationMs:4000, dotPerSec:22, throwRange:600 };
