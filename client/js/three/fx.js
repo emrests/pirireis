@@ -121,8 +121,15 @@ export class FxManager {
 
   spawnSplash(x, y) {
     const h = this._h(x, y);
-    this._ring(x, y, 0xeaf7fa, 90, 0.5);
-    this._smoke(x, h + 16, y, 2, 20, 70, 0.4, 0xdfeef2, 12);
+    this._ring(x, y, 0xeaf7fa, 150, 0.55);
+    this._smoke(x, h + 18, y, 3, 26, 110, 0.5, 0xeaf7fa, 16);
+    // a couple of water plumes so the landing point is obvious
+    for (let i = 0; i < 4; i++) {
+      const m = new THREE.Mesh(SPH, this._mat(0xeaf7fa, 0, 0.7));
+      m.position.set(x, h + 6, y); m.scale.setScalar(6);
+      const a = Math.random() * 6.283;
+      this._push(m, { life: 0.4, vx: Math.cos(a) * 90, vy: rnd(120, 200), vz: Math.sin(a) * 90, grav: 500 });
+    }
   }
 
   update(dt, now) {

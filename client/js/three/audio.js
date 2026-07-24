@@ -4,8 +4,8 @@
 // battle ambience. Music volume is adjustable from the on-screen control.
 class GameAudio {
   constructor() {
-    this.ctx = null; this.master = null; this.sfx = null; this.music = null;
-    this.muted = false; this.musicVol = 0.35; this._musicOn = false;
+    this.ctx = null; this.master = null; this.sfx = null;
+    this.musicEl = null; this.muted = false; this.musicVol = 0.6; this._musicOn = false;
     this._lastSfx = 0;
   }
 
@@ -17,11 +17,14 @@ class GameAudio {
     this.ctx = new C();
     this.master = this.ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(this.ctx.destination);
     this.sfx = this.ctx.createGain(); this.sfx.gain.value = 0.85; this.sfx.connect(this.master);
-    this.music = this.ctx.createGain(); this.music.gain.value = this.musicVol; this.music.connect(this.master);
   }
 
-  setMusicVolume(v) { this.musicVol = v; if (this.music) this.music.gain.setTargetAtTime(this.muted ? 0 : v, this.ctx.currentTime, 0.05); }
-  setMuted(b) { this.muted = b; if (this.master) this.master.gain.setTargetAtTime(b ? 0 : 0.9, this.ctx.currentTime, 0.05); }
+  setMusicVolume(v) { this.musicVol = v; if (this.musicEl) this.musicEl.volume = this.muted ? 0 : v; }
+  setMuted(b) {
+    this.muted = b;
+    if (this.master) this.master.gain.setTargetAtTime(b ? 0 : 0.9, this.ctx.currentTime, 0.05); // SFX
+    if (this.musicEl) this.musicEl.volume = b ? 0 : this.musicVol;
+  }
 
   _noise(dur) {
     const ctx = this.ctx, n = Math.max(1, Math.floor(dur * ctx.sampleRate));
@@ -73,29 +76,15 @@ class GameAudio {
     o.connect(g); o.start(t); o.stop(t + dec + 0.1);
   }
 
-  // low battle ambience: a detuned drone bed + a slow war-drum pulse
+  // background music from the provided mp3 (looped)
   startMusic() {
-    if (this._musicOn || !this.ctx) return; this._musicOn = true;
-    const ctx = this.ctx, t = ctx.currentTime;
-    const bed = ctx.createGain(); bed.gain.value = 0.5; bed.connect(this.music);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.connect(bed);
-    for (const [f, det] of [[73.42, 0], [110, 4], [146.83, -5]]) { // D2 / A2 / D3
-      const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f; o.detune.value = det;
-      const og = ctx.createGain(); og.gain.value = 0.33; o.connect(og); og.connect(lp); o.start(t);
-    }
-    // slow filter sweep for movement
-    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.05;
-    const lfg = ctx.createGain(); lfg.gain.value = 220; lfo.connect(lfg); lfg.connect(lp.frequency); lfo.start(t);
-    // war-drum pulse every ~1.15s + occasional minor-third swell
-    const drum = () => {
-      if (!this._musicOn) return; const now = ctx.currentTime;
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.5, now + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.4); g.connect(this.music);
-      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(90, now); o.frequency.exponentialRampToValueAtTime(45, now + 0.3); o.connect(g); o.start(now); o.stop(now + 0.45);
-      this._drumT = setTimeout(drum, 1150);
-    };
-    drum();
+    if (this._musicOn) return; this._musicOn = true;
+    const el = new Audio('/mp3/background-theme.mp3');
+    el.loop = true; el.volume = this.muted ? 0 : this.musicVol;
+    el.play().catch(() => { /* autoplay may need a further gesture; ignore */ });
+    this.musicEl = el;
   }
-  stopMusic() { this._musicOn = false; if (this._drumT) clearTimeout(this._drumT); }
+  stopMusic() { this._musicOn = false; if (this.musicEl) { this.musicEl.pause(); } }
 }
 
 export const audio = new GameAudio();

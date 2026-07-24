@@ -12,7 +12,7 @@ const ROOT = path.join(__dirname, '..');
 const CLIENT_DIR = path.join(ROOT, 'client');
 const PORT = process.env.PORT || 8080;
 
-const MIME = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.json':'application/json' };
+const MIME = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.json':'application/json', '.mp3':'audio/mpeg' };
 
 const httpServer = http.createServer((req, res) => {
   const urlPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];

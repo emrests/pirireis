@@ -19,7 +19,7 @@ export const SHIPS = {
 };
 
 // Cannon: distance-damage falloff. dmg = cannonDmg * lerp(1 -> minDmgFactor, d/range)
-export const CANNON = { minDmgFactor:0.3, speed:900, radius:14, hitRadius:34 };
+export const CANNON = { minDmgFactor:0.3, speed:620, radius:14, hitRadius:34 };
 
 // Archer: flat low damage, fast, no falloff.
 export const ARCHER = { dmg:7, cooldownMs:700, range:420, arrows:3, spread:0.28, speed:1100, hitRadius:30 };
