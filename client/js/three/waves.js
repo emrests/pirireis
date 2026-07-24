@@ -8,11 +8,13 @@
 // Human-friendly wave definitions -> derived params.
 // dir: 2D direction in the XZ plane. len: wavelength (world units).
 // amp: crest height. speed: phase speed. steep: 0..1 Gerstner steepness.
+// Smaller, more numerous swell — reads as sea texture, not giant rollers.
 const DEFS = [
-  { dir: [ 1.0,  0.35], len: 520, amp: 11, speed: 26, steep: 0.55 },
-  { dir: [-0.6,  1.0 ], len: 340, amp: 7,  speed: 20, steep: 0.5  },
-  { dir: [ 0.4, -0.9 ], len: 210, amp: 4,  speed: 16, steep: 0.45 },
-  { dir: [-1.0, -0.2 ], len: 140, amp: 2.4,speed: 12, steep: 0.4  },
+  { dir: [ 1.0,  0.35], len: 300, amp: 4.6, speed: 22, steep: 0.5  },
+  { dir: [-0.6,  1.0 ], len: 210, amp: 3.2, speed: 18, steep: 0.45 },
+  { dir: [ 0.4, -0.9 ], len: 140, amp: 2.1, speed: 15, steep: 0.4  },
+  { dir: [-1.0, -0.2 ], len: 95,  amp: 1.4, speed: 12, steep: 0.38 },
+  { dir: [ 0.7,  0.7 ], len: 65,  amp: 0.9, speed: 10, steep: 0.35 },
 ];
 
 export const WAVE_COUNT = DEFS.length;

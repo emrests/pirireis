@@ -4,6 +4,7 @@ import { Renderer } from './render.js';
 import { SnapshotBuffer } from './interpolate.js';
 import { Lobby } from './lobby.js';
 import { Input } from './input.js';
+import { audio } from './three/audio.js';
 
 const net = new Net();
 const buffer = new SnapshotBuffer();
@@ -28,13 +29,26 @@ async function boot() {
     renderer = new Renderer(canvas);
     window.addEventListener('resize', () => renderer.resize());
     new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y), (name) => renderer.markAbility(name));
+    setupAudioUI();
+    audio.startMusic();
     requestAnimationFrame(loop);
   });
 
   net.on('snapshot', (m) => { buffer.push(m); clockOffset = Date.now() - m.t; });
   net.on('event', (m) => { for (const e of m.events) if (e.type === 'gameOver') showEnd(e.winner); });
 
-  new Lobby(net, (info) => net.send({ type: 'join', ...info }));
+  new Lobby(net, (info) => { audio.init(); net.send({ type: 'join', ...info }); });
+}
+
+function setupAudioUI() {
+  const ctl = document.getElementById('audioCtl');
+  ctl.classList.remove('hidden');
+  const slider = document.getElementById('musicVol');
+  const mute = document.getElementById('muteBtn');
+  audio.setMusicVolume(slider.value / 100);
+  slider.oninput = () => audio.setMusicVolume(slider.value / 100);
+  let muted = false;
+  mute.onclick = () => { muted = !muted; audio.setMuted(muted); mute.textContent = muted ? '🔇' : '🔊'; };
 }
 
 function loop() {

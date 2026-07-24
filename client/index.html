@@ -23,6 +23,11 @@
     </form>
   </div>
   <canvas id="game" class="screen hidden"></canvas>
+  <div id="audioCtl" class="hidden">
+    <span>🎵</span>
+    <input id="musicVol" type="range" min="0" max="100" value="35" title="Müzik sesi" />
+    <button id="muteBtn" type="button" title="Sustur">🔊</button>
+  </div>
   <div id="endScreen" class="screen hidden"></div>
   <script type="module" src="/js/game.js"></script>
 </body>

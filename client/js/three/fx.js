@@ -4,6 +4,7 @@
 // destroyed. A tiny CPU particle pool (spheres/boxes/rings) animated each frame.
 import * as THREE from '/vendor/three.module.js';
 import { waveHeight } from './waves.js';
+import { audio } from './audio.js';
 
 const SPH = new THREE.SphereGeometry(1, 8, 8);
 const BOX = new THREE.BoxGeometry(1, 1, 1);
@@ -67,7 +68,8 @@ export class FxManager {
     const dx = dir?.x || 0, dz = dir?.y || 0;
     const l = Math.hypot(dx, dz) || 1; const ux = dx / l, uz = dz / l;
     const mx = x + ux * 55, mz = y + uz * 55;
-    if (kind === 'arrow') { this._smoke(mx, h + 35, mz, 2, 14, 90, 0.4, 0x9a9a8a, 9); return; }
+    if (kind === 'arrow') { audio.arrowFire(); this._smoke(mx, h + 35, mz, 2, 14, 90, 0.4, 0x9a9a8a, 9); return; }
+    audio.cannonFire();
     // cannon: flash forward + recoil smoke back + sparks
     this._flash(mx, h + 40, mz, 16, 0xffe08a, 0.13);
     this._smoke(mx - ux * 24, h + 40, mz - uz * 24, 3, 26, 130, 0.6, 0x777777, 20);
@@ -80,6 +82,7 @@ export class FxManager {
 
   spawnImpact(x, y, kind) {
     const h = this._h(x, y);
+    audio.impact(kind);
     if (kind === 'arrow') {
       this._flash(x, h + 50, y, 8, 0xffffff, 0.1);
       for (let i = 0; i < 6; i++) {
@@ -108,6 +111,7 @@ export class FxManager {
 
   spawnDeath(x, y) {
     const h = this._h(x, y);
+    audio.explosion();
     this._flash(x, h + 60, y, 55, 0xfff0c0, 0.17);
     this._fireballs(x, h + 60, y, 13, 42, 0.5);
     this._smoke(x, h + 72, y, 8, 60, 200, 1.3, 0x3a3a3a, 46);

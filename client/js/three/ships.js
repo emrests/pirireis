@@ -168,16 +168,16 @@ export class ShipManager {
       return;
     }
 
-    // float on the real surface, tilt with the wave normal, yaw to heading
+    // float on the surface but only PARTLY follow the waves — ships are heavy,
+    // so damp both the vertical bob and the tilt for a calmer ride.
     const n = waveNormal(s.x, s.y, tSec);
-    _n.set(n.x, n.y, n.z);
-    const bowLift = moving ? 0.06 : 0;
-    // sit the hull into the water (waterline ~mid-hull), scaled per class
-    g.position.set(s.x, h - 0.28 * e.parts.scale, s.y);
+    _n.set(n.x * 0.35, 1, n.z * 0.35).normalize(); // pull the tilt toward upright
+    const bowLift = moving ? 0.05 : 0;
+    g.position.set(s.x, h * 0.4 - 0.28 * e.parts.scale, s.y); // only 40% of wave height
     _qTilt.setFromUnitVectors(_up, _n);
     _qYaw.setFromAxisAngle(_up, e.heading);
     g.quaternion.copy(_qTilt).multiply(_qYaw);
-    g.rotateZ(bowLift + Math.sin(tSec * 1.6 + e.phase) * 0.02); // subtle roll
+    g.rotateZ(bowLift + Math.sin(tSec * 1.4 + e.phase) * 0.01); // gentle roll
 
     // sail / flag flutter
     const t = tSec * 6 + e.phase;

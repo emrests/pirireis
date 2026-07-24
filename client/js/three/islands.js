@@ -48,23 +48,6 @@ function palmTree() {
 
 function tree() { return Math.random() < 0.5 ? pineTree() : palmTree(); }
 
-const SKIN = [0xe8b98f, 0xc98c5a, 0x8d5a3a].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 }));
-const SHIRT = [0xb5241d, 0x2f7fd0, 0xd7c14a, 0x4a8a44, 0xcccccc].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85 }));
-
-// a tiny low-poly islander (torso + head), added to make islands feel inhabited
-function person() {
-  const g = new THREE.Group();
-  const legs = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 3, 8, 6), new THREE.MeshStandardMaterial({ color: 0x3a3a44, roughness: 0.9 }));
-  legs.position.y = 4; legs.castShadow = true; g.add(legs);
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.6, 10, 6), SHIRT[(Math.random() * SHIRT.length) | 0]);
-  torso.position.y = 13; torso.castShadow = true; g.add(torso);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(3.2, 8, 8), SKIN[(Math.random() * SKIN.length) | 0]);
-  head.position.y = 20.5; head.castShadow = true; g.add(head);
-  g.rotation.y = Math.random() * Math.PI * 2;
-  g.scale.setScalar(1.4);
-  return g;
-}
-
 export function createIslands(list) {
   const root = new THREE.Group();
   const sandMat = new THREE.MeshStandardMaterial({ color: 0xcdb98a, roughness: 1 });
@@ -111,17 +94,6 @@ export function createIslands(list) {
         t.scale.setScalar((1.3 + ((i * 3) % 5) * 0.18) * (isl.r / 210));
         grp.add(t);
       }
-    }
-    // a few islanders (NPCs) so the island feels inhabited
-    const people = Math.max(3, Math.round(isl.r / 55));
-    for (let i = 0; i < people; i++) {
-      const ang = i * 1.7 + isl.y * 0.01;
-      const rr = isl.r * (0.1 + 0.42 * ((i * 5) % 4) / 4);
-      const px = Math.cos(ang) * rr, pz = Math.sin(ang) * rr;
-      const p = person();
-      p.position.set(px, surfaceY(rr) - 1, pz);
-      p.scale.multiplyScalar(2.2 * (isl.r / 210));
-      grp.add(p);
     }
     root.add(grp);
   }

@@ -6,7 +6,7 @@ import { GERSTNER_GLSL, waveUniforms, WAVE_COUNT } from './waves.js';
 
 export function createWater(worldW, worldH) {
   const W = worldW + 2000, H = worldH + 2000;
-  const geo = new THREE.PlaneGeometry(W, H, 220, 220);
+  const geo = new THREE.PlaneGeometry(W, H, 340, 340);
   geo.rotateX(-Math.PI / 2); // lie flat on XZ
 
   const u = waveUniforms();
@@ -41,7 +41,7 @@ export function createWater(worldW, worldH) {
         vec3 local = vec3(position.x, 0.0, position.z) + disp;
         vWorld = local + vec3(uOffset.x, 0.0, uOffset.y);
         vNormal = nrm;
-        vCrest = clamp(disp.y * 0.02 + 0.5, 0.0, 1.0);
+        vCrest = clamp(disp.y * 0.045 + 0.5, 0.0, 1.0);
         gl_Position = projectionMatrix * modelViewMatrix * vec4(local, 1.0);
       }
     `,

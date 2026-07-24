@@ -11,11 +11,13 @@ export function cannonDamage(baseDmg, travelled, maxRange) {
 }
 
 export class Projectile {
-  constructor({ id, kind, owner, faction, pos, vel, dmg, life, pierce }) {
+  constructor({ id, kind, owner, faction, pos, vel, dmg, life, pierce, dist }) {
     this.id = id; this.kind = kind; this.owner = owner; this.faction = faction;
     this.pos = { x: pos.x, y: pos.y }; this.vel = { x: vel.x, y: vel.y };
     this.dmg = dmg; this.life = life; this.pierce = !!pierce; this.hitRadius = CANNON.hitRadius;
     if (kind === 'arrow') this.hitRadius = ARCHER.hitRadius;
+    // spawn + intended travel distance, so the client can draw a ballistic arc
+    this.sx = pos.x; this.sy = pos.y; this.dist = dist || 0;
   }
   step(dtMs) {
     const dt = dtMs / 1000;
@@ -27,7 +29,8 @@ export class Projectile {
     return null;
   }
   serialize() {
-    return { id:this.id, kind:this.kind, x:Math.round(this.pos.x), y:Math.round(this.pos.y), faction:this.faction };
+    return { id:this.id, kind:this.kind, x:Math.round(this.pos.x), y:Math.round(this.pos.y), faction:this.faction,
+      sx:Math.round(this.sx), sy:Math.round(this.sy), dist:Math.round(this.dist) };
   }
 }
 
@@ -43,7 +46,7 @@ export function makeCannon(ship, dir, power) {
   return new Projectile({
     id: nextId(), kind:'cannon', owner:ship.id, faction:ship.faction,
     pos:{ x:ship.pos.x, y:ship.pos.y }, vel: scale(d, CANNON.speed),
-    dmg, life, pierce: ship.hasBuff('chainshot'),
+    dmg, life, pierce: ship.hasBuff('chainshot'), dist: travel,
   });
 }
 
@@ -61,36 +64,40 @@ export function makeArcherVolley(ship, dir) {
       id: nextId(), kind:'arrow', owner:ship.id, faction:ship.faction,
       pos:{ x:ship.pos.x, y:ship.pos.y },
       vel:{ x:Math.cos(ang) * ARCHER.speed, y:Math.sin(ang) * ARCHER.speed },
-      dmg: ARCHER.dmg, life, pierce:false,
+      dmg: ARCHER.dmg, life, pierce:false, dist: range,
     }));
   }
   return out;
 }
 
 export class FireArea {
-  constructor({ id, owner, faction, pos, radius, life, dotPerSec, burst }) {
+  constructor({ id, owner, faction, pos, radius, life, dotPerSec, burst, from }) {
     this.id = id; this.owner = owner; this.faction = faction;
     this.pos = { x: pos.x, y: pos.y }; this.radius = radius;
     this.life = life; this.dotPerSec = dotPerSec; this.burst = burst || 0;
     this._burst = false;
+    // where it was thrown from, so the client can arc the projectile in
+    this.sx = from ? from.x : pos.x; this.sy = from ? from.y : pos.y;
   }
   step(dtMs) { this.life -= dtMs; return this.life <= 0 ? 'expired' : null; }
   contains(p) { return Math.hypot(p.x - this.pos.x, p.y - this.pos.y) <= this.radius; }
   serialize() {
-    return { id:this.id, x:Math.round(this.pos.x), y:Math.round(this.pos.y), radius:this.radius, faction:this.faction };
+    return { id:this.id, x:Math.round(this.pos.x), y:Math.round(this.pos.y), radius:this.radius, faction:this.faction,
+      sx:Math.round(this.sx), sy:Math.round(this.sy) };
   }
 }
 
 export function makeMolotov(ship, aimPos) {
+  const from = { x: ship.pos.x, y: ship.pos.y };
   if (ship.cls === 'bombketch') {
     return new FireArea({
-      id: nextId(), owner:ship.id, faction:ship.faction, pos:aimPos,
+      id: nextId(), owner:ship.id, faction:ship.faction, pos:aimPos, from,
       radius: MORTAR.radius, life: MORTAR.durationMs, dotPerSec: MORTAR.dotPerSec, burst: MORTAR.burst,
     });
   }
   const big = ship.cls === 'fireship' || ship.hasBuff('inferno');
   return new FireArea({
-    id: nextId(), owner:ship.id, faction:ship.faction, pos:aimPos,
+    id: nextId(), owner:ship.id, faction:ship.faction, pos:aimPos, from,
     radius: MOLOTOV.radius * (big ? 2 : 1),
     life: MOLOTOV.durationMs * (big ? 2 : 1),
     dotPerSec: MOLOTOV.dotPerSec * (ship.hasBuff('inferno') ? 2 : 1),
