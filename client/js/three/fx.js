@@ -109,6 +109,18 @@ export class FxManager {
     this._ring(x, y, 0xffd0a0, 210, 0.55);
   }
 
+  // gentle molotov ignition: rising flames + a little smoke, no blast
+  spawnIgnite(x, y) {
+    const h = this._h(x, y);
+    for (let i = 0; i < 7; i++) {
+      const c = Math.random() < 0.5 ? 0xff7a1a : 0xffb020;
+      const m = new THREE.Mesh(SPH, this._mat(c, c, 0.9));
+      m.position.set(x + rnd(-30, 30), h + 10, y + rnd(-30, 30)); m.scale.setScalar(rnd(10, 20));
+      this._push(m, { life: rnd(0.35, 0.6), vy: rnd(60, 140), grow: 20 });
+    }
+    this._smoke(x, h + 30, y, 3, 24, 120, 0.8, 0x3a2a20, 24);
+  }
+
   spawnDeath(x, y) {
     const h = this._h(x, y);
     audio.explosion();

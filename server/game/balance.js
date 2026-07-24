@@ -33,9 +33,17 @@ export const MOLOTOV = { cooldownMs:6000, radius:150, durationMs:4000, dotPerSec
 export const MORTAR = { cooldownMs:6000, radius:170, durationMs:400, dotPerSec:0, burst:70, throwRange:1100 };
 
 export const BASE = {
-  hp:700, healRadius:420, healWaitMs:2000, healPerSec:40,
+  hp:700, perEnemyHp:100, regenDelayMs:8000, regenPerSec:6,
+  healRadius:420, healWaitMs:2000, healPerSec:40,
   turretDmg:18, turretRange:700, turretCooldownMs:1200,
   respawnMs:5000, donateRadius:460, baseHitPad:60,
+};
+
+// Kraken: a neutral sea monster that roams the mid-map and sinks any ship it
+// reaches with its arms. Stays away from the edges/bases (min/max bounds).
+export const KRAKEN = {
+  speed:60, turnMs:3200, attackRadius:300, attackDmg:65, attackCooldownMs:1500,
+  minX:900, maxX:3100, minY:750, maxY:3250,
 };
 
 export const BUFF_MS = {

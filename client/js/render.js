@@ -11,10 +11,18 @@ import { createIslands } from './three/islands.js';
 import { BaseManager } from './three/bases.js';
 import { ProjectileManager } from './three/projectiles.js';
 import { FishManager } from './three/fish.js';
+import { KrakenView } from './three/kraken.js';
 import { FxManager } from './three/fx.js';
 import { drawHUD } from './three/hud.js';
+import { waveHeight } from './three/waves.js';
 
 const WORLD = 4000;
+
+// height above the waterline to float each class's HP bar (clears the masts)
+const SHIP_TOP = {
+  sloop:95, cutter:95, brig:115, corvette:115, frigate:125, frigate_n:125,
+  galleon:165, shipofline:170, fireship:125, bombketch:130,
+};
 
 // Island list mirrors server/game/map.js (kept in sync manually).
 export const ISLANDS = [
@@ -65,6 +73,7 @@ export class Renderer {
     this.bases = new BaseManager(this.scene);
     this.proj = new ProjectileManager(this.scene, this.fx);
     this.fish = new FishManager(this.scene);
+    this.krakenView = new KrakenView(this.scene);
 
     // client-side ability cooldown clocks (updated by Input via markAbility)
     this.abilities = { cannon: 0, rifle: 0, molotov: 0, heal: 0 };
@@ -108,6 +117,41 @@ export class Renderer {
   markAbility(name) { if (name in this.abilities) this.abilities[name] = performance.now(); }
   setTarget(x, y) { this.targetPoint = { x, y }; }
 
+  // floating HP bars + names above every ship and base, projected to the overlay
+  _floatingBars(state, t) {
+    const ctx = this.hctx, W = this.hud.width, H = this.hud.height;
+    const v = new THREE.Vector3();
+    ctx.textAlign = 'center';
+    const bar = (wx, wz, topY, hp, maxHp, name, big, tint) => {
+      v.set(wx, topY, wz).project(this.camera);
+      if (v.z > 1) return;
+      const sx = (v.x * 0.5 + 0.5) * W, sy = (-v.y * 0.5 + 0.5) * H;
+      if (sx < -80 || sx > W + 80 || sy < -40 || sy > H + 40) return;
+      const bw = big ? 96 : 56, bh = big ? 8 : 6, x = sx - bw / 2, y = sy;
+      const frac = Math.max(0, Math.min(1, hp / maxHp));
+      if (name) {
+        ctx.font = big ? '700 12px system-ui' : '600 11px system-ui';
+        ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.strokeText(name, sx, y - 6);
+        ctx.fillStyle = tint || '#fff'; ctx.fillText(name, sx, y - 6);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - 1, y - 1, bw + 2, bh + 2);
+      ctx.fillStyle = frac > 0.5 ? '#4caf50' : frac > 0.25 ? '#ffb300' : '#e53935';
+      ctx.fillRect(x, y, bw * frac, bh);
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.strokeRect(x, y, bw, bh);
+      ctx.font = '9px system-ui'; ctx.fillStyle = '#dfe';
+      ctx.fillText(`${Math.round(hp)}/${maxHp}`, sx, y + bh + 9);
+    };
+    for (const s of state.ships) {
+      if (!s.alive) continue;
+      const top = waveHeight(s.x, s.y, t) + (SHIP_TOP[s.cls] || 120);
+      bar(s.x, s.y, top, s.hp, s.maxHp, s.name, false, s.faction === 'pirate' ? '#ff9d8a' : '#9ad1ff');
+    }
+    for (const b of state.bases) {
+      if (!b.alive) continue;
+      bar(b.x, b.y, 210, b.hp, b.maxHp, b.faction === 'pirate' ? 'Korsan Üssü' : 'Donanma Üssü', true, b.faction === 'pirate' ? '#ff9d8a' : '#9ad1ff');
+    }
+  }
+
   draw(state, cam, meId) {
     const now = performance.now();
     const t = now / 1000;
@@ -130,6 +174,7 @@ export class Renderer {
     this.bases.update(state.bases, t);
     this.proj.update(state.projectiles, state.fires, state.ships, t, now);
     this.fish.update(t, dt);
+    this.krakenView.update(state.kraken, t);
     this.fx.update(dt, now);
 
     // aim target marker (pulses on the water)
@@ -142,6 +187,7 @@ export class Renderer {
 
     this.renderer.render(this.scene, this.camera);
     drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS, this.abilities, now);
+    this._floatingBars(state, t);
   }
 
   // Screen pixel -> world (x, y) by casting a ray onto the sea plane (Y=0).

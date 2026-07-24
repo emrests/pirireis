@@ -18,6 +18,8 @@ export class SnapshotBuffer {
       const sb = bs.get(sa.id) || sa;
       return { ...sb, x: sa.x + (sb.x - sa.x) * f, y: sa.y + (sb.y - sa.y) * f };
     });
-    return { ships, projectiles: b.projectiles, fires: b.fires, bases: b.bases, over: b.over, winner: b.winner };
+    let kraken = b.kraken;
+    if (a.kraken && b.kraken) kraken = { ...b.kraken, x: a.kraken.x + (b.kraken.x - a.kraken.x) * f, y: a.kraken.y + (b.kraken.y - a.kraken.y) * f };
+    return { ships, projectiles: b.projectiles, fires: b.fires, bases: b.bases, score: b.score, kraken, over: b.over, winner: b.winner };
   }
 }

@@ -44,7 +44,6 @@ export class ProjectileManager {
     this.fx = fx;
     this.proj = new Map();
     this.fires = new Map();
-    this.throws = new Map(); // fireId -> {sx,sy,ex,ey,t0,bottle}
     this.trails = [];
   }
 
@@ -98,12 +97,12 @@ export class ProjectileManager {
       }
     }
 
-    // --- fire areas: lobbed in first, then ignite ---
+    // --- fire areas: ignite the burning pool right at the target ---
     const fseen = new Set();
     for (const f of fireList) {
       fseen.add(f.id);
       let e = this.fires.get(f.id);
-      if (!e) { e = this._makeFire(f, now); e.group.visible = false; this._startThrow(f, now); }
+      if (!e) { e = this._makeFire(f, now); audio.molotovThrow(); this.fx.spawnIgnite(f.x, f.y); }
       e.group.position.set(f.x, waveHeight(f.x, f.y, tSec) + 2, f.y);
       const flick = 0.7 + 0.3 * Math.sin(now * 0.02);
       for (const fl of e.flames) {
@@ -113,45 +112,11 @@ export class ProjectileManager {
       }
       e.glow.material.opacity = 0.25 + 0.12 * Math.sin(now * 0.015);
     }
-    this._updateThrows(now, tSec);
     for (const [id, e] of this.fires) {
-      if (!fseen.has(id)) {
-        this.scene.remove(e.group);
-        const t = this.throws.get(id);
-        if (t) { this.scene.remove(t.bottle); t.bottle.material.dispose(); this.throws.delete(id); }
-        this.fires.delete(id);
-      }
+      if (!fseen.has(id)) { this.scene.remove(e.group); this.fires.delete(id); }
     }
 
     this._ageTrails(now);
-  }
-
-  _startThrow(f, now) {
-    const bottle = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0x3a2a18, emissive: 0xff5a00, emissiveIntensity: 0.5 }));
-    bottle.castShadow = true;
-    this.scene.add(bottle);
-    audio.molotovThrow();
-    this.throws.set(f.id, { sx: f.sx ?? f.x, sy: f.sy ?? f.y, ex: f.x, ey: f.y, t0: now, bottle });
-  }
-
-  _updateThrows(now, tSec) {
-    for (const [id, t] of this.throws) {
-      const f = (now - t.t0) / THROW_MS;
-      if (f >= 1) {
-        const fire = this.fires.get(id);
-        if (fire) fire.group.visible = true;
-        this.fx.spawnImpact(t.ex, t.ey, 'molotov');
-        this.scene.remove(t.bottle); t.bottle.material.dispose();
-        this.throws.delete(id);
-        continue;
-      }
-      const x = lerp(t.sx, t.ex, f), y = lerp(t.sy, t.ey, f);
-      const d = Math.hypot(t.ex - t.sx, t.ey - t.sy);
-      const apex = Math.min(Math.max(d * 0.28, 90), 260);
-      t.bottle.position.set(x, waveHeight(x, y, tSec) + 28 + apex * 4 * f * (1 - f), y);
-      t.bottle.rotation.x += 0.3; t.bottle.rotation.z += 0.2;
-    }
   }
 
   _trail(x, y3, z, kind, now) {
@@ -182,8 +147,8 @@ export class ProjectileManager {
       const rr = R * (0.2 + Math.random() * 0.7);
       const mat = new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff4400, emissiveIntensity: 1.4, transparent: true, opacity: 0.92 });
       const fl = new THREE.Mesh(FLAME_GEO, mat);
-      fl.scale.setScalar(R / 10);
-      fl.position.set(Math.cos(a) * rr, R / 12, Math.sin(a) * rr);
+      fl.scale.setScalar(R / 7);
+      fl.position.set(Math.cos(a) * rr, R / 10, Math.sin(a) * rr);
       group.add(fl); flames.push(fl);
     }
     const glowGeo = new THREE.CircleGeometry(R * 1.1, 32).rotateX(-Math.PI / 2);

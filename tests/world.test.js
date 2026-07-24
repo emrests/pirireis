@@ -7,8 +7,8 @@ function twoShips() {
   const w = new World('room1');
   const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'galleon', flagColor:'#f00' });
   const b = w.addShip({ id:'b', name:'B', faction:'navy',   cls:'sloop',   flagColor:'#00f' });
-  a.pos = { x: 2000, y: 500 };
-  b.pos = { x: 2000, y: 600 };
+  a.pos = { x: 2000, y: 300 }; // north edge, out of the kraken's mid-map reach
+  b.pos = { x: 2000, y: 400 };
   return { w, a, b };
 }
 
@@ -24,7 +24,7 @@ test('friendly fire does nothing', () => {
   const w = new World('r');
   const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'galleon', flagColor:'#f00' });
   const c = w.addShip({ id:'c', name:'C', faction:'pirate', cls:'sloop', flagColor:'#f00' });
-  a.pos = { x:2000, y:500 }; c.pos = { x:2000, y:600 };
+  a.pos = { x:2000, y:300 }; c.pos = { x:2000, y:400 };
   const before = c.hp;
   w.input('a', { type:'fire', weapon:'cannon', dir:{x:0,y:1}, power:0.2 });
   for (let i = 0; i < 10; i++) w.step(50, 100 + i*50);

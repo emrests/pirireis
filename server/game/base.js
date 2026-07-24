@@ -11,6 +11,14 @@ export class Base {
     this.maxHp = BASE.hp;
     this.alive = true;
     this.lastTurretAt = 0;
+    this.lastHitAt = -999999; // for slow self-repair when not under attack
+  }
+
+  // slow self-repair once the base hasn't been hit for a while
+  regen(dtMs, now) {
+    if (!this.alive || this.hp >= this.maxHp) return;
+    if (now - this.lastHitAt < BASE.regenDelayMs) return;
+    this.hp = Math.min(this.maxHp, this.hp + BASE.regenPerSec * (dtMs / 1000));
   }
 
   inHealZone(ship) { return dist(ship.pos, this.pos) <= BASE.healRadius; }
