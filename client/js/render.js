@@ -14,7 +14,7 @@ import { FishManager } from './three/fish.js';
 import { KrakenView } from './three/kraken.js';
 import { FxManager } from './three/fx.js';
 import { drawHUD } from './three/hud.js';
-import { waveHeight } from './three/waves.js';
+import { waveHeight, waveCfg } from './three/waves.js';
 
 const WORLD = 4000;
 
@@ -128,6 +128,7 @@ export class Renderer {
   markAbility(name) { if (name in this.abilities) this.abilities[name] = performance.now(); }
   setMoveMarker(p) { this.targetPoint = { x: p.x, y: p.y }; }
   setWeapon(w) { this.selectedWeapon = w; }
+  setWaves(on) { waveCfg.on = !!on; }
   _weaponRange(cls) {
     if (this.selectedWeapon === 'rifle') return 660;
     if (this.selectedWeapon === 'molotov') return 600;

@@ -46,7 +46,12 @@ async function boot() {
   });
   net.on('event', (m) => { for (const e of m.events) if (e.type === 'gameOver') showEnd(e.winner); });
 
-  new Lobby(net, (info) => { audio.init(); window.__room = info.room; net.send({ type: 'join', ...info }); });
+  new Lobby(net, (info) => {
+    audio.init();
+    window.__room = info.room;
+    window.__calm = document.getElementById('calmSea').checked;
+    net.send({ type: 'join', ...info });
+  });
 }
 
 function renderRoster(m) {
@@ -87,8 +92,17 @@ function startMatch() {
   window.addEventListener('resize', () => renderer.resize());
   new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y), renderer);
   setupAudioUI();
+  setupWaveToggle();
   audio.startMusic();
   requestAnimationFrame(loop);
+}
+
+function setupWaveToggle() {
+  let on = !window.__calm;
+  renderer.setWaves(on);
+  const wb = document.getElementById('waveBtn');
+  wb.textContent = on ? '🌊' : '〜';
+  wb.onclick = () => { on = !on; renderer.setWaves(on); wb.textContent = on ? '🌊' : '〜'; };
 }
 
 function setupAudioUI() {

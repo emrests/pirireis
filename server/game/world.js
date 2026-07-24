@@ -3,7 +3,7 @@ import { Ship } from './ship.js';
 import { Base } from './base.js';
 import { makeCannon, makeGunShot, makeMolotov } from './weapons.js';
 import { onKill, onArcherKill, resetStreak, expireBuffs, cooldownFactor, addBuff } from './skills.js';
-import { SHIPS, ARCHER, MOLOTOV, MORTAR, BASE, KRAKEN } from './balance.js';
+import { SHIPS, CANNON, ARCHER, MOLOTOV, MORTAR, BASE, KRAKEN } from './balance.js';
 import { ISLANDS, BASES, resolveShipCollision } from './map.js';
 import { dist } from './vec.js';
 
@@ -73,7 +73,7 @@ export class World {
   _fire(s, msg, now) {
     if (msg.weapon === 'cannon') {
       if (!msg.dir || !Number.isFinite(msg.dir.x) || !Number.isFinite(msg.dir.y)) return;
-      const cd = SHIPS[s.cls].reloadMs * cooldownFactor(s);
+      const cd = CANNON.reloadMs * cooldownFactor(s);
       if (now - s.lastCannonAt < cd) return;
       s.lastCannonAt = now;
       this.projectiles.push(makeCannon(s, msg.dir, msg.power ?? 1));

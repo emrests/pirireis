@@ -39,8 +39,8 @@ const CANNON_DMG = {
 // short label of each weapon's hit power, for the ability bar
 function abilityPower(key, mine) {
   if (key === 'cannon') return String(CANNON_DMG[mine?.cls] || 26);
-  if (key === 'rifle') return '9×5';   // 9 dmg/bullet, 5-round burst
-  if (key === 'molotov') return '22/s'; // damage over time
+  if (key === 'rifle') return '6×5';   // 6 dmg/bullet, 5-round burst (lowest)
+  if (key === 'molotov') return '14/s'; // damage over time (middle)
   return '';
 }
 const ABILITIES = [
@@ -52,9 +52,9 @@ const ABILITIES = [
 
 function abilityCooldown(key, mine) {
   const fast = mine && mine.buffs && mine.buffs.includes('fastreload') ? 0.6 : 1;
-  if (key === 'cannon') return (CANNON_RELOAD[mine?.cls] || 2000) * fast;
-  if (key === 'rifle') return 2000 * fast;   // rifle burst reload
-  if (key === 'molotov') return 6000 * fast;
+  if (key === 'cannon') return 4000 * fast;  // flat 4s
+  if (key === 'rifle') return 2000 * fast;   // 2s
+  if (key === 'molotov') return 3000 * fast; // 3s
   return 0; // heal has no cooldown
 }
 

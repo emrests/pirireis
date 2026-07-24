@@ -12,6 +12,7 @@ body { margin:0; font-family: system-ui, sans-serif; background:#0b1e2d; color:#
 .ships .ship { padding:8px 4px; border:1px solid #24506f; border-radius:8px; cursor:pointer; text-align:center; font-size:.72rem; }
 .ships .ship.sel { background:#1d6fa5; border-color:#4db5ff; }
 .flabel { font-size:.85rem; color:#bcd; }
+.sea { font-size:.85rem; color:#bcd; display:flex; align-items:center; gap:8px; cursor:pointer; }
 .flags { display:grid; grid-template-columns:repeat(10,1fr); gap:6px; }
 .flags .flag { aspect-ratio:1; border-radius:6px; cursor:pointer; border:2px solid transparent; box-shadow:0 0 0 1px #0006 inset; }
 .flags .flag.sel { border-color:#fff; transform:scale(1.12); }

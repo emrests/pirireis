@@ -19,6 +19,9 @@ const DEFS = [
 
 export const WAVE_COUNT = DEFS.length;
 
+// runtime toggle: calm sea (off) is flat + much cheaper for weak browsers
+export const waveCfg = { on: true };
+
 // Flatten into typed uniform arrays. Each wave: dir(unit) Dx,Dz; w=2π/len;
 // A=amp; speed(phase per sec); Q=steepness/(w*A*count) so summed crests never loop.
 export const WAVES = DEFS.map((d) => {
@@ -38,6 +41,7 @@ export function waveUniforms() {
 
 // CPU: vertical height of the surface at world (x, z) and time t (seconds).
 export function waveHeight(x, z, t) {
+  if (!waveCfg.on) return 0;
   let y = 0;
   for (const v of WAVES) {
     const phase = v.w * (v.dx * x + v.dz * z) + v.speed * t;
@@ -48,6 +52,7 @@ export function waveHeight(x, z, t) {
 
 // CPU: approximate surface normal (unit) at world (x, z) via finite differences.
 export function waveNormal(x, z, t, e = 6) {
+  if (!waveCfg.on) return { x: 0, y: 1, z: 0 };
   const hL = waveHeight(x - e, z, t), hR = waveHeight(x + e, z, t);
   const hD = waveHeight(x, z - e, t), hU = waveHeight(x, z + e, t);
   const nx = hL - hR;

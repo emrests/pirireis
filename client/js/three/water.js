@@ -2,7 +2,7 @@
 // Animated sea: a large plane displaced by the shared Gerstner waves, shaded
 // with deep/shallow colour, sun specular, Fresnel rim and crest foam.
 import * as THREE from '/vendor/three.module.js';
-import { GERSTNER_GLSL, waveUniforms, WAVE_COUNT } from './waves.js';
+import { GERSTNER_GLSL, waveUniforms, WAVE_COUNT, waveCfg } from './waves.js';
 
 export function createWater(worldW, worldH) {
   const W = worldW + 2000, H = worldH + 2000;
@@ -15,6 +15,7 @@ export function createWater(worldW, worldH) {
   const mat = new THREE.ShaderMaterial({
     uniforms: {
       uTime:   { value: 0 },
+      uWaves:  { value: 1 },
       uSun:    { value: new THREE.Vector3(-0.5, 0.8, 0.35).normalize() },
       uDeep:   { value: new THREE.Color('#14577a') },
       uShallow:{ value: new THREE.Color('#4bb0d0') },
@@ -29,15 +30,17 @@ export function createWater(worldW, worldH) {
     },
     vertexShader: /* glsl */`
       uniform float uTime;
+      uniform float uWaves;
       uniform vec2 uOffset;
       ${GERSTNER_GLSL}
       varying vec3 vWorld;
       varying vec3 vNormal;
       varying float vCrest;
       void main() {
-        vec3 nrm;
+        vec3 nrm = vec3(0.0, 1.0, 0.0);
         // sample waves in WORLD space so ships (CPU waveHeight) match the surface
-        vec3 disp = gerstner(position.xz + uOffset, uTime, nrm);
+        vec3 disp = vec3(0.0);
+        if (uWaves > 0.5) disp = gerstner(position.xz + uOffset, uTime, nrm);
         vec3 local = vec3(position.x, 0.0, position.z) + disp;
         vWorld = local + vec3(uOffset.x, 0.0, uOffset.y);
         vNormal = nrm;
@@ -85,5 +88,6 @@ export function createWater(worldW, worldH) {
 
 export function updateWater(water, tSec, camPos) {
   water.material.uniforms.uTime.value = tSec;
+  water.material.uniforms.uWaves.value = waveCfg.on ? 1 : 0;
   water.material.uniforms.uCam.value.copy(camPos);
 }
