@@ -32,18 +32,18 @@ const CANNON_RELOAD = {
   cutter:1400, corvette:1700, frigate_n:2000, shipofline:3000, bombketch:3200,
 };
 const ABILITIES = [
-  { key: 'cannon',  label: 'SAĞ TIK', icon: '💣', name: 'Top' },
-  { key: 'archer',  label: 'A',       icon: '🏹', name: 'Okçu' },
-  { key: 'molotov', label: 'M',       icon: '🔥', name: 'Molotof' },
-  { key: 'donate',  label: 'D',       icon: '🎁', name: 'Bağış' },
+  { key: 'cannon',  label: 'Q', icon: '💣', name: 'Top' },
+  { key: 'rifle',   label: 'W', icon: '🔫', name: 'Tüfek' },
+  { key: 'molotov', label: 'E', icon: '🔥', name: 'Molotof' },
+  { key: 'heal',    label: 'R', icon: '💚', name: 'Healing' },
 ];
 
 function abilityCooldown(key, mine) {
   const fast = mine && mine.buffs && mine.buffs.includes('fastreload') ? 0.6 : 1;
   if (key === 'cannon') return (CANNON_RELOAD[mine?.cls] || 2000) * fast;
-  if (key === 'archer') return 700 * fast;
+  if (key === 'rifle') return 2400 * fast;   // rifle burst reload
   if (key === 'molotov') return 6000 * fast;
-  return 0; // donate has no cooldown
+  return 0; // heal has no cooldown
 }
 
 function drawAbilityBar(ctx, W, H, mine, abilities, now) {
@@ -99,10 +99,11 @@ export function drawHUD(ctx, W, H, state, meId, islands, abilities, now) {
   const pirate = state.bases.find((b) => b.faction === 'pirate');
   const navy = state.bases.find((b) => b.faction === 'navy');
 
-  // top-centre base HP
+  // top-centre base HP + team score
   if (pirate && navy) {
-    const bw = 220, gap = 60, total = bw * 2 + gap, x0 = (W - total) / 2, y = 16;
-    panel(ctx, x0 - 16, y - 8, total + 32, 44, 12);
+    const bw = 220, gap = 90, total = bw * 2 + gap, x0 = (W - total) / 2, y = 16;
+    const sc = state.score || { pirate: 0, navy: 0 };
+    panel(ctx, x0 - 16, y - 8, total + 32, 60, 12);
     ctx.font = '600 15px system-ui'; ctx.textBaseline = 'middle';
     ctx.textAlign = 'left'; ctx.fillStyle = '#fff';
     ctx.fillText('🏴‍☠️', x0 - 4, y + 14);
@@ -110,9 +111,16 @@ export function drawHUD(ctx, W, H, state, meId, islands, abilities, now) {
     ctx.textAlign = 'right';
     ctx.fillText('⚓', x0 + total + 2, y + 14);
     bar(ctx, x0 + bw + gap, y + 6, bw - 22, 16, navy.hp / navy.maxHp, '#4db5ff');
-    ctx.textAlign = 'center'; ctx.fillStyle = '#cfe';
-    ctx.fillText(`${pirate.hp}`, x0 + bw / 2 + 10, y + 14);
-    ctx.fillText(`${navy.hp}`, x0 + bw + gap + (bw - 22) / 2, y + 14);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#cfe'; ctx.font = '11px system-ui';
+    ctx.fillText(`Üs ${pirate.hp}`, x0 + bw / 2 + 10, y + 14);
+    ctx.fillText(`Üs ${navy.hp}`, x0 + bw + gap + (bw - 22) / 2, y + 14);
+    // team score (kills)
+    ctx.font = '700 16px system-ui'; ctx.fillStyle = '#ff9d8a';
+    ctx.fillText(`Korsan ${sc.pirate}`, x0 + bw / 2, y + 38);
+    ctx.fillStyle = '#9ad1ff';
+    ctx.fillText(`Donanma ${sc.navy}`, x0 + bw + gap + (bw - 22) / 2 - 10, y + 38);
+    ctx.fillStyle = '#889'; ctx.font = '13px system-ui';
+    ctx.fillText('—', W / 2, y + 38);
   }
 
   // own-ship panel bottom-left
@@ -123,7 +131,10 @@ export function drawHUD(ctx, W, H, state, meId, islands, abilities, now) {
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff'; ctx.font = '600 15px system-ui';
     ctx.fillText(mine.name || 'Denizci', px + 14, py + 20);
-    if (mine.streak >= 3) { ctx.fillStyle = '#ffb347'; ctx.fillText(`🔥 ${mine.streak}`, px + pw - 70, py + 20); }
+    ctx.textAlign = 'right'; ctx.fillStyle = '#ffd27a';
+    ctx.fillText(`⚔ ${mine.kills || 0}`, px + pw - 14, py + 20);
+    if (mine.streak >= 3) { ctx.fillStyle = '#ffb347'; ctx.fillText(`🔥${mine.streak}`, px + pw - 74, py + 20); }
+    ctx.textAlign = 'left';
     bar(ctx, px + 14, py + 34, pw - 28, 16, mine.hp / mine.maxHp,
       mine.hp / mine.maxHp > 0.5 ? '#4caf50' : mine.hp / mine.maxHp > 0.25 ? '#ffb300' : '#e53935');
     ctx.fillStyle = '#bcd'; ctx.font = '12px system-ui';

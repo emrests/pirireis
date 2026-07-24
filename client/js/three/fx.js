@@ -68,7 +68,7 @@ export class FxManager {
     const dx = dir?.x || 0, dz = dir?.y || 0;
     const l = Math.hypot(dx, dz) || 1; const ux = dx / l, uz = dz / l;
     const mx = x + ux * 55, mz = y + uz * 55;
-    if (kind === 'arrow') { audio.arrowFire(); this._smoke(mx, h + 35, mz, 2, 14, 90, 0.4, 0x9a9a8a, 9); return; }
+    if (kind === 'bullet') { audio.gunFire(); this._flash(mx, h + 34, mz, 7, 0xfff2b0, 0.08); this._smoke(mx, h + 34, mz, 1, 12, 70, 0.3, 0x9a9a8a, 7); return; }
     audio.cannonFire();
     // cannon: flash forward + recoil smoke back + sparks
     this._flash(mx, h + 40, mz, 16, 0xffe08a, 0.13);
@@ -83,7 +83,7 @@ export class FxManager {
   spawnImpact(x, y, kind) {
     const h = this._h(x, y);
     audio.impact(kind);
-    if (kind === 'arrow') {
+    if (kind === 'bullet') {
       this._flash(x, h + 50, y, 8, 0xffffff, 0.1);
       for (let i = 0; i < 6; i++) {
         const m = new THREE.Mesh(SPH, this._mat(0xffe08a, 0xffe08a, 1));

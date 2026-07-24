@@ -16,7 +16,21 @@ class GameAudio {
     if (!C) return;
     this.ctx = new C();
     this.master = this.ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(this.ctx.destination);
-    this.sfx = this.ctx.createGain(); this.sfx.gain.value = 0.85; this.sfx.connect(this.master);
+    this.sfx = this.ctx.createGain(); this.sfx.gain.value = 0.9; this.sfx.connect(this.master);
+    this.buf = {};
+    this._load('cannon', '/mp3/mortar.mp3');
+    this._load('gun', '/mp3/gun.mp3');
+    this._load('molotov', '/mp3/molotov.mp3');
+  }
+
+  async _load(name, url) {
+    try { const r = await fetch(url); const a = await r.arrayBuffer(); this.buf[name] = await this.ctx.decodeAudioData(a); } catch { /* ignore */ }
+  }
+  _play(name, vol = 1) {
+    if (!this.ctx || !this.buf[name] || !this._ok()) return;
+    const s = this.ctx.createBufferSource(); s.buffer = this.buf[name];
+    const g = this.ctx.createGain(); g.gain.value = vol; s.connect(g); g.connect(this.sfx);
+    s.start();
   }
 
   setMusicVolume(v) { this.musicVol = v; if (this.musicEl) this.musicEl.volume = this.muted ? 0 : v; }
@@ -36,31 +50,13 @@ class GameAudio {
   // throttle so a volley of arrows doesn't machine-gun the mix
   _ok() { const now = performance.now(); if (now - this._lastSfx < 22) return false; this._lastSfx = now; return true; }
 
-  cannonFire() {
-    if (!this.ctx || !this._ok()) return; const t = this.ctx.currentTime;
-    const g = this._hit(0.9, 0.005, 0.34, t);
-    const o = this.ctx.createOscillator(); o.type = 'sine';
-    o.frequency.setValueAtTime(170 + Math.random() * 30, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.3);
-    o.connect(g); o.start(t); o.stop(t + 0.4);
-    const ng = this._hit(0.55, 0.002, 0.16, t); const nb = this._noise(0.22);
-    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100;
-    nb.connect(lp); lp.connect(ng); nb.start(t);
-  }
-  arrowFire() {
-    if (!this.ctx || !this._ok()) return; const t = this.ctx.currentTime;
-    const g = this._hit(0.32, 0.004, 0.14, t); const nb = this._noise(0.16);
-    const hp = this.ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.setValueAtTime(1800, t); hp.frequency.exponentialRampToValueAtTime(3600, t + 0.12); hp.Q.value = 1.2;
-    nb.connect(hp); hp.connect(g); nb.start(t);
-  }
-  molotovThrow() {
-    if (!this.ctx || !this._ok()) return; const t = this.ctx.currentTime;
-    const g = this._hit(0.3, 0.02, 0.3, t); const nb = this._noise(0.35);
-    const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(500, t); bp.frequency.linearRampToValueAtTime(1400, t + 0.3); bp.Q.value = 0.8;
-    nb.connect(bp); bp.connect(g); nb.start(t);
-  }
+  // weapon firing sounds come from the provided mp3 files
+  cannonFire() { this._play('cannon', 0.95); }
+  gunFire() { this._play('gun', 0.7); }
+  molotovThrow() { this._play('molotov', 0.85); }
   impact(kind) {
     if (!this.ctx || !this._ok()) return; const t = this.ctx.currentTime;
-    if (kind === 'arrow') { const g = this._hit(0.3, 0.001, 0.07, t); const nb = this._noise(0.06); const hp = this.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2500; nb.connect(hp); hp.connect(g); nb.start(t); return; }
+    if (kind === 'bullet') { const g = this._hit(0.3, 0.001, 0.07, t); const nb = this._noise(0.06); const hp = this.ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2500; nb.connect(hp); hp.connect(g); nb.start(t); return; }
     if (kind === 'molotov') { const g = this._hit(0.5, 0.01, 0.5, t); const nb = this._noise(0.55); const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600; nb.connect(lp); lp.connect(g); nb.start(t); return; }
     this._boom(t, 0.8, 0.4, 150); // cannon impact
   }

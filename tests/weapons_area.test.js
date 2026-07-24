@@ -1,15 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeArcherVolley, makeMolotov, FireArea } from '../server/game/weapons.js';
+import { makeGunShot, makeMolotov, FireArea } from '../server/game/weapons.js';
 import { Ship } from '../server/game/ship.js';
 import { ARCHER } from '../server/game/balance.js';
 
 const mk = (cls) => new Ship({ id:'p1', name:'A', faction:'pirate', cls, flagColor:'#f00', pos:{x:0,y:0} });
 
-test('archer volley fans multiple arrows', () => {
-  const arrows = makeArcherVolley(mk('brig'), { x:1, y:0 });
-  assert.equal(arrows.length, ARCHER.arrows);
-  assert.ok(arrows.every((a) => a.kind === 'arrow' && a.dmg === ARCHER.dmg));
+test('gun shot is a single bullet with rifle damage', () => {
+  const b = makeGunShot(mk('brig'), { x:1, y:0 });
+  assert.equal(b.kind, 'bullet');
+  assert.equal(b.dmg, ARCHER.dmg);
+  assert.equal(b.dist, ARCHER.range);
 });
 
 test('fireship molotov is bigger than a normal ship', () => {

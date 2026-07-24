@@ -22,10 +22,12 @@ export class Ship {
     this.radius = RADIUS_BY_SIZE[stat.size] || 22;
     this.buffs = [];               // [{type, until}]
     this.streak = 0;
+    this.kills = 0;                // total kills this match (persists across deaths)
     this.archerKills = 0;
     this.lastCannonAt = -999999;
     this.lastArcherAt = -999999;
     this.lastMolotovAt = -999999;
+    this.gunBurst = null;          // {remaining, nextAt, dir} active rifle burst
     this.healingSince = null;      // ts when entered heal zone (set by base logic)
     this.safe = false;             // true while healing in own base zone
   }
@@ -65,7 +67,7 @@ export class Ship {
       id: this.id, name: this.name, faction: this.faction, cls: this.cls,
       flagColor: this.flagColor, x: Math.round(this.pos.x), y: Math.round(this.pos.y),
       hp: Math.round(this.hp), maxHp: this.maxHp, alive: this.alive,
-      streak: this.streak, buffs: this.buffs.map((b) => b.type),
+      streak: this.streak, kills: this.kills, buffs: this.buffs.map((b) => b.type),
     };
   }
 }

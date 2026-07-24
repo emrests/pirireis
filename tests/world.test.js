@@ -85,3 +85,21 @@ test('malformed donate (non-string targetPlayerId) does not crash', () => {
   const { w } = twoShips();
   assert.doesNotThrow(() => w.input('a', { type:'donate', targetPlayerId: 123 }));
 });
+
+test('rifle press starts a 5-round burst that fires over time then reloads', () => {
+  const w = new World('r');
+  const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'brig', flagColor:'#f00' });
+  a.pos = { x: 2000, y: 500 };
+  w.input('a', { type:'fire', weapon:'archer', dir:{ x:1, y:0 } });
+  assert.equal(a.gunBurst.remaining, 5, 'burst queued, none fired yet');
+  let fired = 0; const seen = new Set();
+  for (let t = 0; t <= 700; t += 50) {
+    w.step(50, t);
+    for (const p of w.projectiles) if (p.kind === 'bullet' && !seen.has(p.id)) { seen.add(p.id); fired++; }
+  }
+  assert.equal(fired, 5, 'exactly five bullets fired across the burst');
+  assert.equal(a.gunBurst, null, 'burst finished');
+  // still reloading right after -> a second press does nothing
+  w.input('a', { type:'fire', weapon:'archer', dir:{ x:1, y:0 } });
+  assert.equal(a.gunBurst, null, 'cannot re-fire during reload');
+});

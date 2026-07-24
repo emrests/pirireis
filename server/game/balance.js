@@ -21,8 +21,10 @@ export const SHIPS = {
 // Cannon: distance-damage falloff. dmg = cannonDmg * lerp(1 -> minDmgFactor, d/range)
 export const CANNON = { minDmgFactor:0.3, speed:620, radius:14, hitRadius:34 };
 
-// Archer: flat low damage, fast, no falloff.
-export const ARCHER = { dmg:7, cooldownMs:700, range:420, arrows:3, spread:0.28, speed:1100, hitRadius:30 };
+// Rifle ("Tüfek"): one key-press fires a 5-round automatic BURST, then must
+// reload (cooldownMs). Flat low damage per bullet, no falloff. (Field name
+// ARCHER kept so the 'archer' weapon id / streak wiring stays intact.)
+export const ARCHER = { dmg:9, cooldownMs:2400, range:660, speed:1600, hitRadius:24, spread:0.05, burst:5, burstIntervalMs:85 };
 
 // Molotov: thrown area, lingering DoT.
 export const MOLOTOV = { cooldownMs:6000, radius:150, durationMs:4000, dotPerSec:22, throwRange:600 };
@@ -31,7 +33,7 @@ export const MOLOTOV = { cooldownMs:6000, radius:150, durationMs:4000, dotPerSec
 export const MORTAR = { cooldownMs:6000, radius:170, durationMs:400, dotPerSec:0, burst:70, throwRange:1100 };
 
 export const BASE = {
-  hp:2000, healRadius:420, healWaitMs:2000, healPerSec:40,
+  hp:700, healRadius:420, healWaitMs:2000, healPerSec:40,
   turretDmg:18, turretRange:700, turretCooldownMs:1200,
   respawnMs:5000, donateRadius:460, baseHitPad:60,
 };

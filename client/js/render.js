@@ -67,8 +67,14 @@ export class Renderer {
     this.fish = new FishManager(this.scene);
 
     // client-side ability cooldown clocks (updated by Input via markAbility)
-    this.abilities = { cannon: 0, archer: 0, molotov: 0, donate: 0 };
+    this.abilities = { cannon: 0, rifle: 0, molotov: 0, heal: 0 };
     this._lastT = performance.now();
+
+    // aim target marker (set by right-click via Input.onTarget)
+    this.targetPoint = null;
+    const rg = new THREE.RingGeometry(46, 66, 28); rg.rotateX(-Math.PI / 2);
+    this.reticle = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0x66e0ff, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
+    this.reticle.visible = false; this.scene.add(this.reticle);
 
     // 2D HUD overlay above the WebGL canvas
     this.hud = document.createElement('canvas');
@@ -100,6 +106,7 @@ export class Renderer {
   }
 
   markAbility(name) { if (name in this.abilities) this.abilities[name] = performance.now(); }
+  setTarget(x, y) { this.targetPoint = { x, y }; }
 
   draw(state, cam, meId) {
     const now = performance.now();
@@ -124,6 +131,14 @@ export class Renderer {
     this.proj.update(state.projectiles, state.fires, state.ships, t, now);
     this.fish.update(t, dt);
     this.fx.update(dt, now);
+
+    // aim target marker (pulses on the water)
+    if (this.targetPoint) {
+      this.reticle.visible = true;
+      this.reticle.position.set(this.targetPoint.x, 6, this.targetPoint.y);
+      this.reticle.rotation.y = t * 1.5;
+      this.reticle.scale.setScalar(1 + 0.12 * Math.sin(t * 5));
+    }
 
     this.renderer.render(this.scene, this.camera);
     drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS, this.abilities, now);

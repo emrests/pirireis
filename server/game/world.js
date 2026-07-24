@@ -1,7 +1,7 @@
 // server/game/world.js
 import { Ship } from './ship.js';
 import { Base } from './base.js';
-import { makeCannon, makeArcherVolley, makeMolotov } from './weapons.js';
+import { makeCannon, makeGunShot, makeMolotov } from './weapons.js';
 import { onKill, onArcherKill, resetStreak, expireBuffs, cooldownFactor, addBuff } from './skills.js';
 import { SHIPS, ARCHER, MOLOTOV, MORTAR, BASE } from './balance.js';
 import { dist } from './vec.js';
@@ -14,6 +14,7 @@ export class World {
     this.fires = [];
     this.bases = { pirate: new Base('pirate'), navy: new Base('navy') };
     this.respawns = []; // {id, at}
+    this.score = { pirate: 0, navy: 0 }; // team kill totals
     this.over = false;
     this.winner = null;
     this._now = 0;
@@ -60,11 +61,13 @@ export class World {
       s.lastCannonAt = now;
       this.projectiles.push(makeCannon(s, msg.dir, msg.power ?? 1));
     } else if (msg.weapon === 'archer') {
+      // rifle: one press starts a 5-round auto burst, then reload (cooldownMs)
       if (!msg.dir || !Number.isFinite(msg.dir.x) || !Number.isFinite(msg.dir.y)) return;
       const cd = ARCHER.cooldownMs * cooldownFactor(s);
-      if (now - s.lastArcherAt < cd) return;
-      s.lastArcherAt = now;
-      this.projectiles.push(...makeArcherVolley(s, msg.dir));
+      if (now - s.lastArcherAt < cd) return;                 // still reloading
+      if (s.gunBurst && s.gunBurst.remaining > 0) return;    // burst in progress
+      const rounds = ARCHER.burst + (s.hasBuff('marksman') ? 2 : 0);
+      s.gunBurst = { remaining: rounds, nextAt: now, dir: msg.dir };
     } else if (msg.weapon === 'molotov') {
       if (msg.aim && (!Number.isFinite(msg.aim.x) || !Number.isFinite(msg.aim.y))) return;
       const cd = (s.cls === 'bombketch' ? MORTAR.cooldownMs : MOLOTOV.cooldownMs) * cooldownFactor(s);
@@ -92,9 +95,9 @@ export class World {
       }
     }
 
+    this._stepGunBursts(now);
     this._stepProjectiles(dtMs, now, events);
     this._stepFires(dtMs, now, events);
-    this._stepTurrets(dtMs, now, events);
     this._stepRespawns(now);
     return events;
   }
@@ -103,12 +106,29 @@ export class World {
     return [...this.ships.values()].filter((s) => s.alive && s.faction !== faction);
   }
 
+  // fire queued rifle-burst rounds whose time has come
+  _stepGunBursts(now) {
+    for (const s of this.ships.values()) {
+      if (!s.alive) { s.gunBurst = null; continue; }
+      const b = s.gunBurst;
+      if (!b || b.remaining <= 0) continue;
+      while (b.remaining > 0 && now >= b.nextAt) {
+        this.projectiles.push(makeGunShot(s, b.dir));
+        b.remaining -= 1;
+        b.nextAt += ARCHER.burstIntervalMs;
+        if (b.remaining <= 0) { s.lastArcherAt = now; s.gunBurst = null; break; }
+      }
+    }
+  }
+
   _killShip(victim, killer, killsThisShot, weapon, now, events) {
     victim.alive = false;
     resetStreak(victim);
     this.respawns.push({ id: victim.id, at: now + BASE.respawnMs });
     if (killer && killer.alive) {
-      const granted = weapon === 'arrow' ? onArcherKill(killer, now) : onKill(killer, killsThisShot, now);
+      const granted = weapon === 'bullet' ? onArcherKill(killer, now) : onKill(killer, killsThisShot, now);
+      killer.kills += 1;
+      this.score[killer.faction] += 1;
       events.push({ type: 'kill', killer: killer.id, victim: victim.id });
       for (const g of granted) events.push({ type: 'skillGained', player: killer.id, skill: g });
     } else {
@@ -129,7 +149,7 @@ export class World {
         if (dist(s.pos, p.pos) <= p.hitRadius + s.radius) {
           const died = s.damage(p.dmg);
           hits++;
-          if (died) this._killShip(s, owner, hits, p.kind === 'arrow' ? 'arrow' : 'cannon', now, events);
+          if (died) this._killShip(s, owner, hits, p.kind === 'bullet' ? 'bullet' : 'cannon', now, events);
           if (!p.pierce) { consumed = true; break; }
         }
       }
@@ -204,7 +224,7 @@ export class World {
         const s = this.ships.get(r.id);
         if (s) {
           const rp = this.bases[s.faction].respawnPoint();
-          s.pos = rp; s.hp = s.maxHp; s.alive = true; s.target = null; s.buffs = [];
+          s.pos = rp; s.hp = s.maxHp; s.alive = true; s.target = null; s.buffs = []; s.gunBurst = null;
           s.healingSince = null; s.safe = false;
         }
       } else still.push(r);
@@ -225,6 +245,7 @@ export class World {
       projectiles: this.projectiles.map((p) => p.serialize()),
       fires: this.fires.map((f) => f.serialize()),
       bases: [this.bases.pirate.serialize(), this.bases.navy.serialize()],
+      score: this.score,
       over: this.over, winner: this.winner,
     };
   }

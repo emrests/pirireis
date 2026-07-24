@@ -15,7 +15,7 @@ export class Projectile {
     this.id = id; this.kind = kind; this.owner = owner; this.faction = faction;
     this.pos = { x: pos.x, y: pos.y }; this.vel = { x: vel.x, y: vel.y };
     this.dmg = dmg; this.life = life; this.pierce = !!pierce; this.hitRadius = CANNON.hitRadius;
-    if (kind === 'arrow') this.hitRadius = ARCHER.hitRadius;
+    if (kind === 'bullet') this.hitRadius = ARCHER.hitRadius;
     // spawn + intended travel distance, so the client can draw a ballistic arc
     this.sx = pos.x; this.sy = pos.y; this.dist = dist || 0;
   }
@@ -50,24 +50,18 @@ export function makeCannon(ship, dir, power) {
   });
 }
 
-export function makeArcherVolley(ship, dir) {
+// one rifle bullet toward dir (with a little spread); a burst calls this 5x.
+export function makeGunShot(ship, dir) {
   const marks = ship.hasBuff('marksman');
-  const count = ARCHER.arrows + (marks ? 2 : 0);
   const range = ARCHER.range * (marks ? 1.4 : 1);
   const life = (range / ARCHER.speed) * 1000;
-  const baseAng = Math.atan2(dir.y, dir.x);
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    const offset = (i - (count - 1) / 2) * (ARCHER.spread / Math.max(1, count - 1)) * 2;
-    const ang = baseAng + offset;
-    out.push(new Projectile({
-      id: nextId(), kind:'arrow', owner:ship.id, faction:ship.faction,
-      pos:{ x:ship.pos.x, y:ship.pos.y },
-      vel:{ x:Math.cos(ang) * ARCHER.speed, y:Math.sin(ang) * ARCHER.speed },
-      dmg: ARCHER.dmg, life, pierce:false, dist: range,
-    }));
-  }
-  return out;
+  const ang = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * 2 * ARCHER.spread;
+  return new Projectile({
+    id: nextId(), kind:'bullet', owner:ship.id, faction:ship.faction,
+    pos:{ x:ship.pos.x, y:ship.pos.y },
+    vel:{ x:Math.cos(ang) * ARCHER.speed, y:Math.sin(ang) * ARCHER.speed },
+    dmg: ARCHER.dmg, life, pierce:false, dist: range,
+  });
 }
 
 export class FireArea {

@@ -28,7 +28,8 @@ async function boot() {
     canvas.classList.remove('hidden');
     renderer = new Renderer(canvas);
     window.addEventListener('resize', () => renderer.resize());
-    new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y), (name) => renderer.markAbility(name));
+    new Input(canvas, net, currentState, myId, (x, y) => renderer.screenToWorld(x, y),
+      (name) => renderer.markAbility(name), (pt) => renderer.setTarget(pt.x, pt.y));
     setupAudioUI();
     audio.startMusic();
     requestAnimationFrame(loop);
