@@ -118,8 +118,9 @@ const _qTilt = new THREE.Quaternion();
 const _qYaw = new THREE.Quaternion();
 
 export class ShipManager {
-  constructor(scene) {
+  constructor(scene, fx) {
     this.scene = scene;
+    this.fx = fx;
     this.ships = new Map(); // id -> {parts, heading, lastX, lastY, deadSince, wake:[], lastWake, phase}
   }
 
@@ -153,15 +154,16 @@ export class ShipManager {
     }
     e.lastX = s.x; e.lastY = s.y;
 
-    if (!s.alive && e.deadSince == null) e.deadSince = now;
+    if (!s.alive && e.deadSince == null) { e.deadSince = now; if (this.fx) this.fx.spawnDeath(s.x, s.y); }
     if (s.alive) e.deadSince = null;
 
     const h = waveHeight(s.x, s.y, tSec);
     if (e.deadSince != null) {
       const k = Math.min(1, (now - e.deadSince) / SINK_MS);
-      g.position.set(s.x, h - k * 55, s.y);
+      const sink = k * k * (0.6 * e.parts.scale + 90); // accelerate under, scale with hull
+      g.position.set(s.x, h - sink, s.y);
       _qYaw.setFromAxisAngle(_up, e.heading);
-      _qTilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0.4).normalize(), k * 1.1);
+      _qTilt.setFromAxisAngle(new THREE.Vector3(1, 0, 0.45).normalize(), k * 1.7);
       g.quaternion.copy(_qTilt).multiply(_qYaw);
       return;
     }

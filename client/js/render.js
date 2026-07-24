@@ -11,6 +11,7 @@ import { createIslands } from './three/islands.js';
 import { BaseManager } from './three/bases.js';
 import { ProjectileManager } from './three/projectiles.js';
 import { FishManager } from './three/fish.js';
+import { FxManager } from './three/fx.js';
 import { drawHUD } from './three/hud.js';
 
 const WORLD = 4000;
@@ -59,9 +60,10 @@ export class Renderer {
     this.water = createWater(WORLD, WORLD);
     this.scene.add(this.water.mesh);
     this.scene.add(createIslands(ISLANDS));
-    this.ships = new ShipManager(this.scene);
+    this.fx = new FxManager(this.scene);
+    this.ships = new ShipManager(this.scene, this.fx);
     this.bases = new BaseManager(this.scene);
-    this.proj = new ProjectileManager(this.scene);
+    this.proj = new ProjectileManager(this.scene, this.fx);
     this.fish = new FishManager(this.scene);
 
     // client-side ability cooldown clocks (updated by Input via markAbility)
@@ -119,8 +121,9 @@ export class Renderer {
     updateWater(this.water, t, this.camera.position);
     this.ships.update(state.ships, t, now);
     this.bases.update(state.bases, t);
-    this.proj.update(state.projectiles, state.fires, t, now);
+    this.proj.update(state.projectiles, state.fires, state.ships, t, now);
     this.fish.update(t, dt);
+    this.fx.update(dt, now);
 
     this.renderer.render(this.scene, this.camera);
     drawHUD(this.hctx, this.hud.width, this.hud.height, state, meId, ISLANDS, this.abilities, now);

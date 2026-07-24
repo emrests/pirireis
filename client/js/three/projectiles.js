@@ -14,15 +14,28 @@ const SPLASH_GEO = new THREE.RingGeometry(4, 9, 20);
 SPLASH_GEO.rotateX(-Math.PI / 2);
 const FLAME_GEO = new THREE.ConeGeometry(1, 2.4, 7);
 
+const HIT_DIST = 95; // world units: projectile vanishing this close to an enemy = a hit
+
 export class ProjectileManager {
-  constructor(scene) {
+  constructor(scene, fx) {
     this.scene = scene;
-    this.proj = new Map();   // id -> {mesh, kind, lastX, lastY}
+    this.fx = fx;
+    this.proj = new Map();   // id -> {mesh, kind, faction, lastX, lastY, spawnX, spawnY, muzzled}
     this.fires = new Map();  // id -> {group, flames[], born}
-    this.splashes = [];      // {mesh, born}
   }
 
-  update(projList, fireList, tSec, now) {
+  // nearest enemy ship to (x,y); returns it if within HIT_DIST, else null
+  _enemyHitAt(x, y, faction, ships) {
+    let best = HIT_DIST, hit = null;
+    for (const s of ships) {
+      if (!s.alive || s.faction === faction) continue;
+      const d = Math.hypot(s.x - x, s.y - y);
+      if (d < best) { best = d; hit = s; }
+    }
+    return hit;
+  }
+
+  update(projList, fireList, ships, tSec, now) {
     // --- projectiles ---
     const seen = new Set();
     for (const p of projList) {
@@ -34,20 +47,25 @@ export class ProjectileManager {
           : new THREE.Mesh(BALL_GEO, BALL_MAT);
         mesh.castShadow = true;
         this.scene.add(mesh);
-        e = { mesh, kind: p.kind, lastX: p.x, lastY: p.y };
+        e = { mesh, kind: p.kind, faction: p.faction, lastX: p.x, lastY: p.y, spawnX: p.x, spawnY: p.y, muzzled: false };
         this.proj.set(p.id, e);
       }
       const h = waveHeight(p.x, p.y, tSec) + 30;
-      if (p.kind === 'arrow') {
-        const dx = p.x - e.lastX, dz = p.y - e.lastY;
-        if (Math.hypot(dx, dz) > 0.01) e.mesh.rotation.y = Math.atan2(-dz, dx);
+      const dx = p.x - e.lastX, dz = p.y - e.lastY;
+      if (p.kind === 'arrow' && Math.hypot(dx, dz) > 0.01) e.mesh.rotation.y = Math.atan2(-dz, dx);
+      // muzzle flash on the firing ship, once we know the shot's direction
+      if (!e.muzzled) {
+        const sd = Math.hypot(p.x - e.spawnX, p.y - e.spawnY);
+        if (sd > 2) { this.fx.spawnMuzzle(e.spawnX, e.spawnY, { x: p.x - e.spawnX, y: p.y - e.spawnY }, e.kind); e.muzzled = true; }
       }
       e.mesh.position.set(p.x, h, p.y);
       e.lastX = p.x; e.lastY = p.y;
     }
     for (const [id, e] of this.proj) {
       if (!seen.has(id)) {
-        if (e.kind !== 'arrow') this._splash(e.lastX, e.lastY, tSec, now);
+        const hit = this._enemyHitAt(e.lastX, e.lastY, e.faction, ships);
+        if (hit) this.fx.spawnImpact(hit.x, hit.y, e.kind === 'arrow' ? 'arrow' : 'cannon');
+        else if (e.kind !== 'arrow') this.fx.spawnSplash(e.lastX, e.lastY);
         this.scene.remove(e.mesh); this.proj.delete(id);
       }
     }
@@ -57,7 +75,7 @@ export class ProjectileManager {
     for (const f of fireList) {
       fseen.add(f.id);
       let e = this.fires.get(f.id);
-      if (!e) e = this._makeFire(f, now);
+      if (!e) { e = this._makeFire(f, now); this.fx.spawnImpact(f.x, f.y, 'molotov'); }
       e.group.position.set(f.x, waveHeight(f.x, f.y, tSec) + 2, f.y);
       const flick = 0.7 + 0.3 * Math.sin(now * 0.02);
       for (const fl of e.flames) {
@@ -69,15 +87,6 @@ export class ProjectileManager {
     }
     for (const [id, e] of this.fires) {
       if (!fseen.has(id)) { this.scene.remove(e.group); this.fires.delete(id); }
-    }
-
-    // --- splashes ---
-    for (let i = this.splashes.length - 1; i >= 0; i--) {
-      const s = this.splashes[i];
-      const k = (now - s.born) / 650;
-      if (k >= 1) { this.scene.remove(s.mesh); s.mesh.material.dispose(); this.splashes.splice(i, 1); continue; }
-      s.mesh.scale.setScalar(1 + k * 3);
-      s.mesh.material.opacity = 0.6 * (1 - k);
     }
   }
 
@@ -103,13 +112,5 @@ export class ProjectileManager {
     const e = { group, flames, glow, born: now };
     this.fires.set(f.id, e);
     return e;
-  }
-
-  _splash(x, y, tSec, now) {
-    const mat = new THREE.MeshBasicMaterial({ color: 0xeaf7fa, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide });
-    const m = new THREE.Mesh(SPLASH_GEO, mat);
-    m.position.set(x, waveHeight(x, y, tSec) + 1, y);
-    this.scene.add(m);
-    this.splashes.push({ mesh: m, born: now });
   }
 }
