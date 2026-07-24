@@ -16,7 +16,12 @@ export const SHIPS = {
   frigate_n:  { faction:'navy',   size:'medium',   hp:160, speed:136, cannonDmg:26, reloadMs:2000, range:700,  vision:750, special:'balanced' },
   shipofline: { faction:'navy',   size:'large',    hp:260, speed:84,  cannonDmg:46, reloadMs:3000, range:860,  vision:700, special:'armor' },
   bombketch:  { faction:'navy',   size:'special',  hp:130, speed:120, cannonDmg:24, reloadMs:3200, range:1100, vision:750, special:'mortar' },
+  // NPC soldier boat (spawned by bases; not player-selectable). Weak everything.
+  boat:       { faction:'pirate', size:'small',    hp:15,  speed:130, cannonDmg:4,  reloadMs:2500, range:420,  vision:600, special:'npc' },
 };
+
+// NPC boat soldiers spawned from each base.
+export const NPC = { spawnMs:15000, sinkMs:2000 };
 
 // Cannon: distance-damage falloff. dmg = cannonDmg * lerp(1 -> minDmgFactor, d/range)
 // Cannon = HIGHEST damage (class-based, close full / far reduced), flat 4s reload.

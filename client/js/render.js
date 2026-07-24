@@ -21,7 +21,7 @@ const WORLD = 4000;
 // height above the waterline to float each class's HP bar (clears the masts)
 const SHIP_TOP = {
   sloop:95, cutter:95, brig:115, corvette:115, frigate:125, frigate_n:125,
-  galleon:165, shipofline:170, fireship:125, bombketch:130,
+  galleon:165, shipofline:170, fireship:125, bombketch:130, boat:55,
 };
 // cannon range per class (mirrors balance SHIPS.range)
 const WEAPON_RANGE = {

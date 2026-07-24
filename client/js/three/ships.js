@@ -19,6 +19,7 @@ const CLASS = {
   galleon:    { s: 40, masts: 3 }, shipofline: { s: 42, masts: 3 },
   fireship:   { s: 28, masts: 2, brazier: true },
   bombketch:  { s: 30, masts: 1, mortar: true },
+  boat:       { s: 11, masts: 0, soldier: true }, // NPC rowboat
 };
 
 const PIRATE = { hull: 0x4a3123, deck: 0x6b4a2f, trim: 0x8a2b22, sail: 0xd7d0bd };
@@ -82,10 +83,20 @@ function buildShip(cls, faction, flagColor) {
     sail.position.set(mx, 1.2, 0); sail.rotation.y = Math.PI / 2; sail.castShadow = true;
     g.add(sail); sails.push(sail);
   }
-  // flag in player colour at tallest mast
+  // flag in player colour at tallest mast (low for the mastless NPC boat)
   const flagMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(flagColor || '#ffffff'), roughness: 0.8, side: THREE.DoubleSide, emissive: new THREE.Color(flagColor || '#ffffff'), emissiveIntensity: 0.12 });
   const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.2), flagMat);
-  flag.position.set(0.55, 1.78, 0); g.add(flag);
+  flag.position.set(0.55, nm > 0 ? 1.78 : 0.7, 0); g.add(flag);
+
+  // NPC soldier standing in the rowboat, musket in hand
+  if (spec.soldier) {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.5, 7), new THREE.MeshStandardMaterial({ color: 0x39485a, roughness: 0.85 }));
+    body.position.set(0, 0.78, 0); body.castShadow = true; g.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), new THREE.MeshStandardMaterial({ color: 0xc98c5a, roughness: 0.8 }));
+    head.position.set(0, 1.08, 0); head.castShadow = true; g.add(head);
+    const musket = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.55, 5), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5 }));
+    musket.rotation.z = Math.PI / 2; musket.position.set(0.4, 0.82, 0.06); g.add(musket);
+  }
 
   // cannons on larger ships
   if (spec.s >= 29) {

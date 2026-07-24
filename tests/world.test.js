@@ -86,6 +86,19 @@ test('malformed donate (non-string targetPlayerId) does not crash', () => {
   assert.doesNotThrow(() => w.input('a', { type:'donate', targetPlayerId: 123 }));
 });
 
+test('bases spawn low-HP NPC soldier boats on the interval', () => {
+  const w = new World('r');
+  w.addShip({ id:'a', name:'A', faction:'pirate', cls:'galleon', flagColor:'#f00' });
+  w.setNpcInterval(3000);
+  for (let t = 0; t <= 3100; t += 50) w.step(50, t);
+  const npcs = [...w.ships.values()].filter((s) => s.npc);
+  assert.ok(npcs.length >= 2, `spawned NPC boats (${npcs.length})`);
+  assert.equal(npcs[0].cls, 'boat');
+  assert.equal(npcs[0].maxHp, 15);
+  // NPCs must not inflate base HP (players only)
+  assert.equal(w.bases.navy.maxHp, 100); // 1 pirate player -> navy base 100
+});
+
 test('ships cannot sail through each other (pushed apart)', () => {
   const w = new World('r');
   const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'frigate', flagColor:'#f00' });

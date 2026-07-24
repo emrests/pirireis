@@ -15,6 +15,7 @@ export const MSG = {
   DONATE: 'donate',
   START_GAME: 'startGame',
   SET_TEAM: 'setTeam',
+  SET_NPC: 'setNpc',
   // server -> client
   ROOMS: 'rooms',
   JOINED: 'joined',

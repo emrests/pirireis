@@ -31,6 +31,7 @@ async function boot() {
     document.getElementById('roomName').textContent = window.__room || '';
     document.getElementById('startBtn').onclick = () => net.send({ type: 'startGame' });
     document.querySelectorAll('.teamBtn').forEach((b) => { b.onclick = () => net.send({ type: 'setTeam', faction: b.dataset.faction }); });
+    document.getElementById('npcSec').onchange = (e) => net.send({ type: 'setNpc', sec: parseInt(e.target.value, 10) || 15 });
   });
 
   net.on('lobby', (m) => renderRoster(m));
@@ -72,6 +73,9 @@ function renderRoster(m) {
   fill(document.getElementById('nlist'), n);
   const myFaction = (m.players.find((x) => x.id === meId) || {}).faction;
   document.querySelectorAll('.teamBtn').forEach((b) => { b.disabled = b.dataset.faction === myFaction; });
+  const npcEl = document.getElementById('npcSec');
+  if (document.activeElement !== npcEl && m.npcSec) npcEl.value = m.npcSec;
+  npcEl.disabled = !isHost;
   document.getElementById('startBtn').classList.toggle('hidden', !isHost);
   document.getElementById('waitMsg').classList.toggle('hidden', isHost);
 }

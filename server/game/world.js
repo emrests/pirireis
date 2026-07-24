@@ -3,7 +3,7 @@ import { Ship } from './ship.js';
 import { Base } from './base.js';
 import { makeCannon, makeGunShot, makeMolotov } from './weapons.js';
 import { onKill, onArcherKill, resetStreak, expireBuffs, cooldownFactor, addBuff } from './skills.js';
-import { SHIPS, CANNON, ARCHER, MOLOTOV, MORTAR, BASE, KRAKEN } from './balance.js';
+import { SHIPS, CANNON, ARCHER, MOLOTOV, MORTAR, BASE, KRAKEN, NPC } from './balance.js';
 import { ISLANDS, BASES, resolveShipCollision } from './map.js';
 import { dist } from './vec.js';
 
@@ -17,6 +17,10 @@ export class World {
     this.respawns = []; // {id, at}
     this.score = { pirate: 0, navy: 0 }; // team kill totals
     this.kraken = { x: 2000, y: 900, ang: Math.random() * 6.28, nextTurn: 0, lastAttackAt: -999999, attackT: -999999, tx: 0, ty: 0 };
+    this.npcInterval = NPC.spawnMs;
+    this.npcSpawnAt = { pirate: NPC.spawnMs, navy: NPC.spawnMs };
+    this.npcRemovals = []; // {id, at}
+    this.npcSeq = 0;
     this.over = false;
     this.winner = null;
     this._now = 0;
@@ -31,10 +35,12 @@ export class World {
   }
   removeShip(id) { this.ships.delete(id); this._recomputeBaseHp(); }
 
+  setNpcInterval(ms) { this.npcInterval = Math.max(3000, ms | 0); this.npcSpawnAt = { pirate: this.npcInterval, navy: this.npcInterval }; }
+
   // each base's HP = (opposing team size) * perEnemyHp, min one player's worth
   _recomputeBaseHp() {
     const count = { pirate: 0, navy: 0 };
-    for (const s of this.ships.values()) count[s.faction] += 1;
+    for (const s of this.ships.values()) { if (!s.npc) count[s.faction] += 1; }
     for (const f of ['pirate', 'navy']) {
       const enemy = f === 'pirate' ? 'navy' : 'pirate';
       const max = Math.max(BASE.perEnemyHp, count[enemy] * BASE.perEnemyHp);
@@ -113,6 +119,8 @@ export class World {
       }
     }
 
+    this._stepNpcSpawn(now);
+    this._stepNpcAI(now);
     this._stepGunBursts(now);
     this._stepProjectiles(dtMs, now, events);
     this._stepFires(dtMs, now, events);
@@ -120,6 +128,7 @@ export class World {
     this.bases.pirate.regen(dtMs, now);
     this.bases.navy.regen(dtMs, now);
     this._stepRespawns(now);
+    this._stepNpcRemovals(now);
     return events;
   }
 
@@ -160,6 +169,51 @@ export class World {
         if (b.remaining <= 0) { s.lastArcherAt = now; s.gunBurst = null; break; }
       }
     }
+  }
+
+  // bases spawn NPC soldier boats on a timer (capped per faction)
+  _stepNpcSpawn(now) {
+    for (const f of ['pirate', 'navy']) {
+      if (!this.bases[f].alive || now < this.npcSpawnAt[f]) continue;
+      this.npcSpawnAt[f] = now + this.npcInterval;
+      let count = 0;
+      for (const s of this.ships.values()) if (s.npc && s.faction === f && s.alive) count++;
+      if (count >= 6) continue;
+      const id = 'npc' + (++this.npcSeq);
+      this.ships.set(id, new Ship({
+        id, name: 'Asker', faction: f, cls: 'boat',
+        flagColor: f === 'pirate' ? '#e63946' : '#4db5ff', pos: this.bases[f].respawnPoint(), npc: true,
+      }));
+    }
+  }
+
+  // NPC boats hunt the nearest enemy ship and pepper it with weak single shots
+  _stepNpcAI(now) {
+    for (const s of this.ships.values()) {
+      if (!s.npc || !s.alive) continue;
+      let best = Infinity, enemy = null;
+      for (const t of this.ships.values()) {
+        if (!t.alive || t.faction === s.faction || t.safe) continue;
+        const d = dist(s.pos, t.pos);
+        if (d < best) { best = d; enemy = t; }
+      }
+      const range = SHIPS[s.cls].range;
+      if (enemy) {
+        s.setTarget(enemy.pos.x, enemy.pos.y);
+        if (best <= range && now - s.lastCannonAt >= SHIPS[s.cls].reloadMs) {
+          s.lastCannonAt = now;
+          this.projectiles.push(makeCannon(s, { x: enemy.pos.x - s.pos.x, y: enemy.pos.y - s.pos.y }, Math.min(1, best / range)));
+        }
+      } else {
+        const eb = this.bases[s.faction === 'pirate' ? 'navy' : 'pirate'].pos;
+        s.setTarget(eb.x, eb.y);
+      }
+    }
+  }
+
+  _stepNpcRemovals(now) {
+    if (!this.npcRemovals.length) return;
+    this.npcRemovals = this.npcRemovals.filter((r) => { if (now >= r.at) { this.ships.delete(r.id); return false; } return true; });
   }
 
   // the kraken wanders the mid-map, chases nearby ships and sinks them; it
@@ -213,14 +267,24 @@ export class World {
 
   _killShip(victim, killer, killsThisShot, weapon, now, events) {
     victim.alive = false;
+    // NPC boats are removed (after a short sink), never respawn, no reward
+    if (victim.npc) {
+      this.npcRemovals.push({ id: victim.id, at: now + NPC.sinkMs });
+      events.push({ type: 'kill', killer: killer ? killer.id : null, victim: victim.id });
+      return;
+    }
     resetStreak(victim);
     this.respawns.push({ id: victim.id, at: now + BASE.respawnMs });
-    if (killer && killer.alive) {
+    if (killer && killer.alive && !killer.npc) {
       const granted = weapon === 'bullet' ? onArcherKill(killer, now) : onKill(killer, killsThisShot, now);
       killer.kills += 1;
       this.score[killer.faction] += 1;
       events.push({ type: 'kill', killer: killer.id, victim: victim.id });
       for (const g of granted) events.push({ type: 'skillGained', player: killer.id, skill: g });
+    } else if (killer && killer.npc) {
+      // an NPC boat killed a player -> team gets the score, no personal streak
+      this.score[killer.faction] += 1;
+      events.push({ type: 'kill', killer: killer.id, victim: victim.id });
     } else {
       events.push({ type: 'kill', killer: killer ? killer.id : null, victim: victim.id });
     }

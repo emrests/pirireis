@@ -34,7 +34,7 @@ const rooms = new Map();
 
 function getRoom(id) {
   if (!rooms.has(id)) {
-    const entry = { room: null, sockets: new Set(), phase: 'lobby', hostId: null, lobby: new Map() };
+    const entry = { room: null, sockets: new Set(), phase: 'lobby', hostId: null, lobby: new Map(), npcSec: 15 };
     entry.room = new Room(id, (obj) => {
       const data = JSON.stringify(obj);
       for (const ws of entry.sockets) { if (ws.readyState === ws.OPEN) ws.send(data); }
@@ -53,7 +53,7 @@ function broadcast(entry, obj) { const d = JSON.stringify(obj); for (const ws of
 
 function broadcastLobby(entry) {
   const players = [...entry.lobby.entries()].map(([id, c]) => ({ id, nick: c.name, faction: c.faction }));
-  broadcast(entry, { type: MSG.LOBBY, players, hostId: entry.hostId, phase: entry.phase });
+  broadcast(entry, { type: MSG.LOBBY, players, hostId: entry.hostId, phase: entry.phase, npcSec: entry.npcSec });
 }
 
 let _id = 0;
@@ -93,11 +93,21 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (msg.type === MSG.SET_NPC) {
+      const entry = ws.roomId && rooms.get(ws.roomId);
+      if (!entry || entry.phase !== 'lobby' || ws.playerId !== entry.hostId) return;
+      const sec = Math.max(3, Math.min(120, msg.sec | 0));
+      entry.npcSec = sec;
+      broadcastLobby(entry);
+      return;
+    }
+
     if (msg.type === MSG.START_GAME) {
       const entry = ws.roomId && rooms.get(ws.roomId);
       if (!entry || entry.phase !== 'lobby' || ws.playerId !== entry.hostId) return;
       if (entry.lobby.size === 0) return;
       entry.phase = 'playing';
+      entry.room.world.setNpcInterval(entry.npcSec * 1000);
       for (const [pid, cfg] of entry.lobby) entry.room.join({ id: pid, ...cfg });
       broadcast(entry, { type: MSG.STARTED });
       entry.room.start();

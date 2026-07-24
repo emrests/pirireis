@@ -5,13 +5,14 @@ import { resolveShipCollision } from './map.js';
 const RADIUS_BY_SIZE = { small:16, smallmed:20, medium:24, large:34, special:24 };
 
 export class Ship {
-  constructor({ id, name, faction, cls, flagColor, pos }) {
+  constructor({ id, name, faction, cls, flagColor, pos, npc }) {
     const stat = SHIPS[cls];
     if (!stat) throw new Error('unknown ship class ' + cls);
     this.id = id;
     this.name = name;
     this.faction = faction;
     this.cls = cls;
+    this.npc = !!npc;
     this.flagColor = flagColor;
     this.stat = stat;
     this.pos = { x: pos.x, y: pos.y };
@@ -67,7 +68,7 @@ export class Ship {
       id: this.id, name: this.name, faction: this.faction, cls: this.cls,
       flagColor: this.flagColor, x: Math.round(this.pos.x), y: Math.round(this.pos.y),
       hp: Math.round(this.hp), maxHp: this.maxHp, alive: this.alive,
-      streak: this.streak, kills: this.kills, buffs: this.buffs.map((b) => b.type),
+      streak: this.streak, kills: this.kills, npc: this.npc, buffs: this.buffs.map((b) => b.type),
     };
   }
 }
