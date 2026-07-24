@@ -86,6 +86,26 @@ test('malformed donate (non-string targetPlayerId) does not crash', () => {
   assert.doesNotThrow(() => w.input('a', { type:'donate', targetPlayerId: 123 }));
 });
 
+test('ships cannot sail through each other (pushed apart)', () => {
+  const w = new World('r');
+  const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'frigate', flagColor:'#f00' });
+  const b = w.addShip({ id:'b', name:'B', faction:'pirate', cls:'frigate', flagColor:'#f00' });
+  a.pos = { x: 2000, y: 300 }; b.pos = { x: 2000, y: 306 }; // overlapping
+  w.step(50, 100);
+  const d = Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y);
+  assert.ok(d >= a.radius + b.radius - 1, `ships separated (d=${d})`);
+});
+
+test('base takes damage from a shot landing on it from the side', () => {
+  const w = new World('r');
+  const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'galleon', flagColor:'#f00' });
+  a.pos = { x: 3600, y: 2320 }; // south of the navy base
+  const before = w.bases.navy.hp;
+  w.input('a', { type:'fire', weapon:'cannon', dir:{ x:0, y:-1 }, power:1 });
+  for (let i = 0; i < 20; i++) w.step(50, 100 + i * 50);
+  assert.ok(w.bases.navy.hp < before, 'base damaged from the side');
+});
+
 test('rifle press starts a 5-round burst that fires over time then reloads', () => {
   const w = new World('r');
   const a = w.addShip({ id:'a', name:'A', faction:'pirate', cls:'brig', flagColor:'#f00' });

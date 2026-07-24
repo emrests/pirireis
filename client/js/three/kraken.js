@@ -37,9 +37,11 @@ export class KrakenView {
 
     // separate world-space "grab" arm used during an attack
     this.grab = new THREE.Group(); this.grab.visible = false; scene.add(this.grab);
-    this.grabMat = new THREE.MeshStandardMaterial({ color: 0x4a2d63, roughness: 0.7, emissive: 0x6a1030, emissiveIntensity: 0.5 });
+    this.grabMat = new THREE.MeshStandardMaterial({ color: 0x6a2d7a, roughness: 0.6, emissive: 0x9a1848, emissiveIntensity: 0.9 });
     this.grabSegs = [];
-    for (let j = 0; j < 9; j++) { const m = new THREE.Mesh(SPH, this.grabMat); m.scale.setScalar(30 * (1 - j / 9) + 8); this.grab.add(m); this.grabSegs.push(m); }
+    for (let j = 0; j < 10; j++) { const m = new THREE.Mesh(SPH, this.grabMat); m.scale.setScalar(30 * (1 - j / 10) + 9); this.grab.add(m); this.grabSegs.push(m); }
+
+    this.group.scale.setScalar(0.6); // smaller body so it fits between islands
   }
 
   update(k, tSec) {
@@ -65,7 +67,7 @@ export class KrakenView {
     if (k.atk) {
       this.grab.visible = true;
       const sx = k.x, sz = k.y, ex = k.tx, ez = k.ty;
-      const peak = 120;
+      const peak = 155;
       for (let j = 0; j < this.grabSegs.length; j++) {
         const t = j / (this.grabSegs.length - 1);
         const x = sx + (ex - sx) * t, z = sz + (ez - sz) * t;

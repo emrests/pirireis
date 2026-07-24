@@ -4,6 +4,7 @@ import { Base } from './base.js';
 import { makeCannon, makeGunShot, makeMolotov } from './weapons.js';
 import { onKill, onArcherKill, resetStreak, expireBuffs, cooldownFactor, addBuff } from './skills.js';
 import { SHIPS, ARCHER, MOLOTOV, MORTAR, BASE, KRAKEN } from './balance.js';
+import { ISLANDS, BASES, resolveShipCollision } from './map.js';
 import { dist } from './vec.js';
 
 export class World {
@@ -104,6 +105,7 @@ export class World {
     }
 
     for (const s of this.ships.values()) { if (s.alive) s.step(dtMs); expireBuffs(s, now); }
+    this._resolveShipCollisions();
 
     for (const f of ['pirate', 'navy']) {
       for (const s of this.ships.values()) {
@@ -125,6 +127,26 @@ export class World {
     return [...this.ships.values()].filter((s) => s.alive && s.faction !== faction);
   }
 
+  // push overlapping ships apart so they can't sail through each other
+  _resolveShipCollisions() {
+    const arr = [...this.ships.values()].filter((s) => s.alive);
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const a = arr[i], b = arr[j];
+        const dx = b.pos.x - a.pos.x, dy = b.pos.y - a.pos.y;
+        const d = Math.hypot(dx, dy), min = a.radius + b.radius;
+        if (d === 0) { b.pos.x += min; continue; }
+        if (d < min) {
+          const push = (min - d) / 2, ux = dx / d, uy = dy / d;
+          a.pos.x -= ux * push; a.pos.y -= uy * push;
+          b.pos.x += ux * push; b.pos.y += uy * push;
+        }
+      }
+    }
+    // keep everyone out of islands / world bounds after the shove
+    for (const s of arr) s.pos = resolveShipCollision(s.pos, s.radius);
+  }
+
   // fire queued rifle-burst rounds whose time has come
   _stepGunBursts(now) {
     for (const s of this.ships.values()) {
@@ -140,24 +162,48 @@ export class World {
     }
   }
 
-  // the kraken wanders the mid-map and sinks any ship within reach
+  // the kraken wanders the mid-map, chases nearby ships and sinks them; it
+  // keeps out of islands and base circles.
   _stepKraken(dtMs, now, events) {
-    const k = this.kraken, dt = dtMs / 1000;
-    if (now >= k.nextTurn) { k.ang = Math.random() * Math.PI * 2; k.nextTurn = now + KRAKEN.turnMs * (0.5 + Math.random()); }
-    k.x += Math.cos(k.ang) * KRAKEN.speed * dt;
-    k.y += Math.sin(k.ang) * KRAKEN.speed * dt;
-    if (k.x < KRAKEN.minX) { k.x = KRAKEN.minX; k.ang = Math.PI - k.ang; }
-    if (k.x > KRAKEN.maxX) { k.x = KRAKEN.maxX; k.ang = Math.PI - k.ang; }
-    if (k.y < KRAKEN.minY) { k.y = KRAKEN.minY; k.ang = -k.ang; }
-    if (k.y > KRAKEN.maxY) { k.y = KRAKEN.maxY; k.ang = -k.ang; }
-    if (now - k.lastAttackAt < KRAKEN.attackCooldownMs) return;
-    let best = KRAKEN.attackRadius, target = null;
+    const k = this.kraken, dt = dtMs / 1000, R = KRAKEN.radius;
+    // notice the nearest ship in range (ignore dead / safe-in-base)
+    let best = KRAKEN.detectRadius, target = null;
     for (const s of this.ships.values()) {
       if (!s.alive || s.safe) continue;
       const d = dist(s.pos, k);
       if (d < best) { best = d; target = s; }
     }
     if (target) {
+      const desired = Math.atan2(target.pos.y - k.y, target.pos.x - k.x);
+      let da = ((desired - k.ang + Math.PI) % (2 * Math.PI)) - Math.PI;
+      if (da < -Math.PI) da += 2 * Math.PI;
+      const step = KRAKEN.turnRate * dt;
+      k.ang += Math.max(-step, Math.min(step, da));
+    } else if (now >= k.nextTurn) {
+      k.ang = Math.random() * Math.PI * 2; k.nextTurn = now + KRAKEN.turnMs * (0.5 + Math.random());
+    }
+    const spd = target ? KRAKEN.chaseSpeed : KRAKEN.speed;
+    k.x += Math.cos(k.ang) * spd * dt;
+    k.y += Math.sin(k.ang) * spd * dt;
+
+    // stay in the central region
+    if (k.x < KRAKEN.minX) { k.x = KRAKEN.minX; k.ang = Math.PI - k.ang; }
+    if (k.x > KRAKEN.maxX) { k.x = KRAKEN.maxX; k.ang = Math.PI - k.ang; }
+    if (k.y < KRAKEN.minY) { k.y = KRAKEN.minY; k.ang = -k.ang; }
+    if (k.y > KRAKEN.maxY) { k.y = KRAKEN.maxY; k.ang = -k.ang; }
+    // never slip under an island
+    for (const i of ISLANDS) {
+      const dx = k.x - i.x, dy = k.y - i.y, d = Math.hypot(dx, dy), min = i.r + R;
+      if (d < min && d > 0) { k.x = i.x + (dx / d) * min; k.y = i.y + (dy / d) * min; k.ang = Math.atan2(dy, dx); }
+    }
+    // stay out of the base circles
+    for (const f of ['pirate', 'navy']) {
+      const b = BASES[f], dx = k.x - b.x, dy = k.y - b.y, d = Math.hypot(dx, dy), min = BASE.healRadius + R;
+      if (d < min && d > 0) { k.x = b.x + (dx / d) * min; k.y = b.y + (dy / d) * min; k.ang = Math.atan2(dy, dx); }
+    }
+
+    // attack the target if it is within reach
+    if (target && now - k.lastAttackAt >= KRAKEN.attackCooldownMs && dist(target.pos, k) <= KRAKEN.attackRadius) {
       k.lastAttackAt = now; k.attackT = now; k.tx = target.pos.x; k.ty = target.pos.y;
       const died = target.damage(KRAKEN.attackDmg);
       events.push({ type: 'kraken', x: target.pos.x, y: target.pos.y });
@@ -293,7 +339,7 @@ export class World {
       score: this.score,
       kraken: {
         x: Math.round(this.kraken.x), y: Math.round(this.kraken.y), ang: this.kraken.ang,
-        atk: (this._now - this.kraken.attackT) < 350, tx: Math.round(this.kraken.tx), ty: Math.round(this.kraken.ty),
+        atk: (this._now - this.kraken.attackT) < 550, tx: Math.round(this.kraken.tx), ty: Math.round(this.kraken.ty),
       },
       over: this.over, winner: this.winner,
     };
