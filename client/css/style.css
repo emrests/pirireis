@@ -11,6 +11,11 @@ body { margin:0; font-family: system-ui, sans-serif; background:#0b1e2d; color:#
 .ships { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
 .ships .ship { padding:8px 4px; border:1px solid #24506f; border-radius:8px; cursor:pointer; text-align:center; font-size:.72rem; }
 .ships .ship.sel { background:#1d6fa5; border-color:#4db5ff; }
+.flabel { font-size:.85rem; color:#bcd; }
+.flags { display:grid; grid-template-columns:repeat(10,1fr); gap:6px; }
+.flags .flag { aspect-ratio:1; border-radius:6px; cursor:pointer; border:2px solid transparent; box-shadow:0 0 0 1px #0006 inset; }
+.flags .flag.sel { border-color:#fff; transform:scale(1.12); }
+#joinForm input.invalid { border-color:#e63946; box-shadow:0 0 0 2px #e6394655; }
 #joinForm button { padding:12px; border:0; border-radius:8px; background:#e63946; color:#fff; font-weight:700; cursor:pointer; }
 #game { display:block; width:100vw; height:100vh; background:#12455f; }
 #audioCtl { position:fixed; top:12px; left:12px; z-index:8; display:flex; align-items:center; gap:8px; padding:7px 12px; border-radius:10px; background:rgba(8,20,30,0.6); border:1px solid rgba(255,255,255,0.12); color:#e8f1f8; font-size:14px; }

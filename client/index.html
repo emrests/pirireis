@@ -12,13 +12,14 @@
     <div id="roomList"></div>
     <form id="joinForm">
       <input id="room" placeholder="Oda adı" value="oda1" />
-      <input id="nick" placeholder="Rumuz" value="Denizci" />
+      <input id="nick" placeholder="Rumuz (zorunlu)" maxlength="16" autocomplete="off" required />
       <div class="factions">
         <label><input type="radio" name="faction" value="pirate" checked /> 🏴‍☠️ Korsan</label>
         <label><input type="radio" name="faction" value="navy" /> ⚓ Donanma</label>
       </div>
       <div id="ships" class="ships"></div>
-      <label>Bayrak: <input type="color" id="flag" value="#e63946" /></label>
+      <label class="flabel">Bayrak rengi:</label>
+      <div id="flags" class="flags"></div>
       <button type="submit">Savaşa Gir</button>
     </form>
   </div>
