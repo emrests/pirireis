@@ -143,7 +143,7 @@ export class ShipManager {
       if (!e) {
         const parts = buildShip(s.cls, s.faction, s.flagColor);
         this.scene.add(parts.group);
-        e = { parts, heading: s.faction === 'pirate' ? 0 : Math.PI, lastX: s.x, lastY: s.y, deadSince: null, wake: [], lastWake: 0, phase: Math.random() * 6.28 };
+        e = { parts, heading: s.faction === 'pirate' ? 0 : Math.PI, lastX: s.x, lastY: s.y, vx: 0, vz: 0, deadSince: null, wake: [], lastWake: 0, phase: Math.random() * 6.28 };
         this.ships.set(s.id, e);
       }
       this._updateOne(e, s, tSec, now);
@@ -157,11 +157,14 @@ export class ShipManager {
     const g = e.parts.group;
     const dx = s.x - e.lastX, dz = s.y - e.lastY;
     const dist = Math.hypot(dx, dz);
-    const speed = dist / (1 / 60);
-    const moving = s.alive && dist > MOVE_EPS;
+    // derive heading from a SMOOTHED velocity, not the raw per-frame delta —
+    // otherwise interpolation noise makes big/slow hulls wobble as they sail.
+    e.vx = e.vx * 0.82 + dx * 0.18; e.vz = e.vz * 0.82 + dz * 0.18;
+    const sp = Math.hypot(e.vx, e.vz);
+    const moving = s.alive && sp > MOVE_EPS;
     if (moving) {
-      const target = Math.atan2(-dz, dx);
-      e.heading = lerpAngle(e.heading, target, 0.16);
+      const target = Math.atan2(-e.vz, e.vx);
+      e.heading = lerpAngle(e.heading, target, 0.14);
     }
     e.lastX = s.x; e.lastY = s.y;
 

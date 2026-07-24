@@ -24,7 +24,8 @@ export class Base {
   inHealZone(ship) { return dist(ship.pos, this.pos) <= BASE.healRadius; }
 
   updateHeal(ship, dtMs, now) {
-    if (!ship.alive) { ship.healingSince = null; ship.safe = false; return; }
+    // NPC boats never heal or become safe at the base
+    if (!ship.alive || ship.npc) { ship.healingSince = null; ship.safe = false; return; }
     if (this.inHealZone(ship)) {
       if (ship.healingSince == null) ship.healingSince = now;
       ship.safe = true;

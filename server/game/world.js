@@ -136,21 +136,27 @@ export class World {
     return [...this.ships.values()].filter((s) => s.alive && s.faction !== faction);
   }
 
-  // push overlapping ships apart so they can't sail through each other
+  // push overlapping ships apart so they can't sail through each other;
+  // several relaxation passes make the blocking firm even in a tight cluster
   _resolveShipCollisions() {
     const arr = [...this.ships.values()].filter((s) => s.alive);
-    for (let i = 0; i < arr.length; i++) {
-      for (let j = i + 1; j < arr.length; j++) {
-        const a = arr[i], b = arr[j];
-        const dx = b.pos.x - a.pos.x, dy = b.pos.y - a.pos.y;
-        const d = Math.hypot(dx, dy), min = a.radius + b.radius;
-        if (d === 0) { b.pos.x += min; continue; }
-        if (d < min) {
-          const push = (min - d) / 2, ux = dx / d, uy = dy / d;
-          a.pos.x -= ux * push; a.pos.y -= uy * push;
-          b.pos.x += ux * push; b.pos.y += uy * push;
+    for (let iter = 0; iter < 4; iter++) {
+      let moved = false;
+      for (let i = 0; i < arr.length; i++) {
+        for (let j = i + 1; j < arr.length; j++) {
+          const a = arr[i], b = arr[j];
+          const dx = b.pos.x - a.pos.x, dy = b.pos.y - a.pos.y;
+          const d = Math.hypot(dx, dy), min = a.radius + b.radius;
+          if (d === 0) { b.pos.x += min; moved = true; continue; }
+          if (d < min) {
+            const push = (min - d) / 2, ux = dx / d, uy = dy / d;
+            a.pos.x -= ux * push; a.pos.y -= uy * push;
+            b.pos.x += ux * push; b.pos.y += uy * push;
+            moved = true;
+          }
         }
       }
+      if (!moved) break;
     }
     // keep everyone out of islands / world bounds after the shove
     for (const s of arr) s.pos = resolveShipCollision(s.pos, s.radius);
@@ -199,7 +205,14 @@ export class World {
       }
       const range = SHIPS[s.cls].range;
       if (enemy) {
-        s.setTarget(enemy.pos.x, enemy.pos.y);
+        // keep a standoff distance instead of ramming the target
+        const standoff = range * 0.7;
+        if (best > standoff) {
+          const ux = (enemy.pos.x - s.pos.x) / best, uy = (enemy.pos.y - s.pos.y) / best;
+          s.setTarget(enemy.pos.x - ux * standoff, enemy.pos.y - uy * standoff);
+        } else {
+          s.target = null; // hold position, just fire
+        }
         if (best <= range && now - s.lastCannonAt >= SHIPS[s.cls].reloadMs) {
           s.lastCannonAt = now;
           this.projectiles.push(makeCannon(s, { x: enemy.pos.x - s.pos.x, y: enemy.pos.y - s.pos.y }, Math.min(1, best / range)));
